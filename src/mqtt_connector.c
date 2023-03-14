@@ -57,6 +57,8 @@ static char* broker = NULL;
 static char* connMode = NULL;
 static char* connect = NULL;
 static char* subscribe = NULL;
+static char* publishget = NULL;
+static char *publishnotify = NULL;
 static int mqinit = 0;
 static rbusHandle_t rbus_handle;
 
@@ -1308,16 +1310,6 @@ rbusError_t webcfgMqttConnectSetHandler(rbusHandle_t handle, rbusProperty_t prop
 					printf("cm_mqtt_init connect %s\n", connect);
 					cm_mqtt_init();
 					printf("cm_mqtt_init done\n");
-					/*retPsmSet = rbus_StoreValueIntoDB( MQTT_CONNECT_PARAM, connect);
-					if (retPsmSet != RBUS_ERROR_SUCCESS)
-					{
-						printf("psm_set failed ret %d for parameter %s and value %s\n", retPsmSet, paramName, connect);
-						return retPsmSet;
-					}
-					else
-					{
-						printf("psm_set success ret %d for parameter %s and value %s\n", retPsmSet, paramName, connect);
-					}*/
 				}
 				else
 				{
@@ -1381,6 +1373,125 @@ rbusError_t webcfgMqttSubscribeSetHandler(rbusHandle_t handle, rbusProperty_t pr
 					return RBUS_ERROR_INVALID_INPUT;
 				}
 			}
+		} else {
+			printf("Unexpected value type for property %s\n", paramName);
+			return RBUS_ERROR_INVALID_INPUT;
+		}
+	}
+	return RBUS_ERROR_SUCCESS;
+}
+rbusError_t webcfgMqttPublishSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSetHandlerOptions_t* opts)
+{
+	(void) handle;
+	(void) opts;
+	char const* paramName = rbusProperty_GetName(prop);
+
+	if(strncmp(paramName, MQTT_PUBLISHGET_PARAM, maxParamLen) != 0)
+	{
+		printf("Unexpected parameter = %s\n", paramName);
+		return RBUS_ERROR_ELEMENT_DOES_NOT_EXIST;
+	}
+
+	rbusError_t retPsmSet = RBUS_ERROR_BUS_ERROR;
+	printf("Parameter name is %s \n", paramName);
+	rbusValueType_t type_t;
+	rbusValue_t paramValue_t = rbusProperty_GetValue(prop);
+	if(paramValue_t) {
+		type_t = rbusValue_GetType(paramValue_t);
+	} else {
+		printf("Invalid input to set\n");
+		return RBUS_ERROR_INVALID_INPUT;
+	}
+
+	if(strncmp(paramName, MQTT_PUBLISHGET_PARAM, maxParamLen) == 0) {
+
+		if(type_t == RBUS_BYTES) {
+			void* data = rbusValue_SetBytes(paramValue_t, NULL, 0);
+			if(data) {
+					printf("Call datamodel function  with data %s\n", (char*)data);
+
+					if(publishget) {
+						free(publishget);
+						publishget= NULL;
+					}
+					publishget = data;
+					printf("mqtt publishget %s\n", publishget);
+					if(!bootupsync)
+					{
+						printf("mqtt is connected and subscribed to topic, trigger bootup sync to cloud.\n");
+						printf("publishget received is \n%s len %zu\n", publishget, strlen(publishget));
+						char publish_get_topic[256] = { 0 };
+						char locationID[256] = { 0 };
+						char *pub_get_topic = NULL;
+						Get_Mqtt_LocationId(locationID);
+						printf("locationID is %s\n", locationID);
+						snprintf(publish_get_topic, MAX_MQTT_LEN, "%s%s/%s", MQTT_PUBLISH_GET_TOPIC_PREFIX, g_ClientID,locationID);
+						if(strlen(publish_get_topic) >0)
+						{
+							pub_get_topic = strdup(publish_get_topic);
+							printf("pub_get_topic from tr181 is %s\n", pub_get_topic);
+							publish_notify_mqtt(pub_get_topic, (void*)publishget, strlen(publishget), NULL);
+							printf("triggerBootupSync published to topic %s\n", pub_get_topic);
+						}
+						else
+						{
+							printf("Failed to fetch publish_get_topic\n");
+						}
+
+						bootupsync = 1;
+					}
+				}
+		} else {
+			printf("Unexpected value type for property %s\n", paramName);
+			return RBUS_ERROR_INVALID_INPUT;
+		}
+	}
+	return RBUS_ERROR_SUCCESS;
+}
+
+rbusError_t webcfgMqttPublishSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSetHandlerOptions_t* opts)
+{
+	(void) handle;
+	(void) opts;
+	char const* paramName = rbusProperty_GetName(prop);
+
+	if(strncmp(paramName, MQTT_PUBLISHNOTIF_PARAM, maxParamLen) != 0)
+	{
+		printf("Unexpected parameter = %s\n", paramName);
+		return RBUS_ERROR_ELEMENT_DOES_NOT_EXIST;
+	}
+
+	rbusError_t retPsmSet = RBUS_ERROR_BUS_ERROR;
+	printf("Parameter name is %s \n", paramName);
+	rbusValueType_t type_t;
+	rbusValue_t paramValue_t = rbusProperty_GetValue(prop);
+	if(paramValue_t) {
+		type_t = rbusValue_GetType(paramValue_t);
+	} else {
+		printf("Invalid input to set\n");
+		return RBUS_ERROR_INVALID_INPUT;
+	}
+
+	if(strncmp(paramName, MQTT_PUBLISHNOTIF_PARAM, maxParamLen) == 0) {
+
+		if(type_t == RBUS_BYTES) {
+			void* data = rbusValue_SetBytes(paramValue_t, NULL, 0);
+			if(data) {
+					printf("Call datamodel function  with data %s\n", (char*)data);
+
+					if(publishnotify) {
+						free(publishnotify);
+						publishnotify= NULL;
+					}
+					publishnotify = data;
+					printf("publishnotify received is \n%s len %zu\n", publishnotify, strlen(publishnotify));
+					printf("publish_notify_mqtt with json string payload\n");
+					char *payload_str = strdup(publishnotify);
+					printf("payload_str %s len %zu\n", payload_str, strlen(payload_str));
+					publish_notify_mqtt(NULL, payload_str, strlen(payload_str), "destination"); //TODO: Need to finalize how mqttCM can get webcfg destination in this tr181?
+					//WEBCFG_FREE(payload_str);
+					printf("publish_notify_mqtt done\n");
+				}
 		} else {
 			printf("Unexpected value type for property %s\n", paramName);
 			return RBUS_ERROR_INVALID_INPUT;
@@ -1701,7 +1812,7 @@ int regMqttDataModel()
 		{MQTT_CONNECTMODE_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {webcfgMqttConnModeGetHandler, webcfgMqttConnModeSetHandler, NULL, NULL, NULL, NULL}},
 		{MQTT_CONNECT_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {NULL, webcfgMqttConnectSetHandler, NULL, NULL, NULL, NULL}},
 		{MQTT_SUBSCRIBE_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {NULL, webcfgMqttSubscribeSetHandler, NULL, NULL, NULL, NULL}},
-		{MQTT_PUBLISHGET_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {NULL, webcfgMqttPublishGeTSetHandler, NULL, NULL, NULL, NULL}},
+		{MQTT_PUBLISHGET_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {NULL, webcfgMqttPublishSetHandler, NULL, NULL, NULL, NULL}},
 		{MQTT_PUBLISHNOTIF_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {NULL, webcfgMqttPublishNotificationSetHandler, NULL, NULL, NULL, NULL}},
 	};
 
