@@ -1759,12 +1759,9 @@ rbusError_t webcfgMqttPortGetHandler(rbusHandle_t handle, rbusProperty_t propert
 			{
 				printf("Port is empty\n");
 				char * mqtt_port = NULL;
-				snprintf(mqtt_port, MAX_MQTT_LEN, "%d", MQTT_PORT);
+				mqtt_port = (char *)malloc(sizeof(10));
+				snprintf(mqtt_port, 10, "%d",MQTT_PORT);
 				rbusValue_SetString(value, mqtt_port);
-				if(mqtt_port != NULL)
-				{
-					free(mqtt_port);
-				}
 			}
 		}
 	}
