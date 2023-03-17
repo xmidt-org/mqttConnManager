@@ -37,6 +37,7 @@
 #include <rbus/rbus_object.h>
 #include <rbus/rbus_property.h>
 #include <rbus/rbus_value.h>
+#include "mqtt_connector.h"
 
 int __attribute__((weak)) Get_Mqtt_LocationId( char *pString);
 int __attribute__((weak)) Get_Mqtt_Broker( char *pString);
@@ -55,10 +56,10 @@ static char* clientId =NULL;
 static char* Port =NULL;
 static char* broker = NULL;
 static char* connMode = NULL;
-static char* connect = NULL;
+static char* connectMqtt = NULL;
 static char* subscribe = NULL;
-static char* publishget = NULL;
-static char *publishnotify = NULL;
+/*static char* publishget = NULL;
+static char *publishnotify = NULL;*/
 static int mqinit = 0;
 static rbusHandle_t rbus_handle;
 
@@ -78,7 +79,7 @@ pthread_cond_t mqtt_retry_con=PTHREAD_COND_INITIALIZER;
 pthread_mutex_t mqtt_mut=PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t mqtt_con=PTHREAD_COND_INITIALIZER;
 
-int mqttCMRbusInit(const char *pComponentName)
+int mqttCMRbusInit()
 {
 	int ret = RBUS_ERROR_SUCCESS;
 
@@ -593,8 +594,8 @@ bool cm_mqtt_init()
 // callback called when the client receives a CONNACK message from the broker
 void on_connect(struct mosquitto *mosq, void *obj, int reason_code)
 {
-        int rc;
-	char topic[256] = { 0 };
+       // int rc;
+	//char topic[256] = { 0 };
         printf("on_connect: reason_code %d %s\n", reason_code, mosquitto_connack_string(reason_code));
         if(reason_code != 0)
 	{
@@ -1279,7 +1280,7 @@ rbusError_t webcfgMqttConnectSetHandler(rbusHandle_t handle, rbusProperty_t prop
 		return RBUS_ERROR_ELEMENT_DOES_NOT_EXIST;
 	}
 
-	rbusError_t retPsmSet = RBUS_ERROR_BUS_ERROR;
+	//rbusError_t retPsmSet = RBUS_ERROR_BUS_ERROR;
 	printf("Parameter name is %s \n", paramName);
 	rbusValueType_t type_t;
 	rbusValue_t paramValue_t = rbusProperty_GetValue(prop);
@@ -1299,15 +1300,15 @@ rbusError_t webcfgMqttConnectSetHandler(rbusHandle_t handle, rbusProperty_t prop
 				{
 					printf("Call datamodel function  with data %s\n", data);
 
-					if(connect) {
-						//free(connect);
-						//connect= NULL;
+					if(connectMqtt) {
+						//free(connectMqtt);
+						//connectMqtt= NULL;
 						printf("connection is already established. Ignoring this request.\n");
 						return RBUS_ERROR_SESSION_ALREADY_EXIST;
 					}
-					connect = strdup(data);
+					connectMqtt = strdup(data);
 					free(data);
-					printf("cm_mqtt_init connect %s\n", connect);
+					printf("cm_mqtt_init connect %s\n", connectMqtt);
 					cm_mqtt_init();
 					printf("cm_mqtt_init done\n");
 				}
@@ -1337,7 +1338,7 @@ rbusError_t webcfgMqttSubscribeSetHandler(rbusHandle_t handle, rbusProperty_t pr
 		return RBUS_ERROR_ELEMENT_DOES_NOT_EXIST;
 	}
 
-	rbusError_t retPsmSet = RBUS_ERROR_BUS_ERROR;
+	//rbusError_t retPsmSet = RBUS_ERROR_BUS_ERROR;
 	printf("Parameter name is %s \n", paramName);
 	rbusValueType_t type_t;
 	rbusValue_t paramValue_t = rbusProperty_GetValue(prop);
@@ -1380,6 +1381,7 @@ rbusError_t webcfgMqttSubscribeSetHandler(rbusHandle_t handle, rbusProperty_t pr
 	}
 	return RBUS_ERROR_SUCCESS;
 }
+/*
 rbusError_t webcfgMqttPublishSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSetHandlerOptions_t* opts)
 {
 	(void) handle;
@@ -1392,7 +1394,7 @@ rbusError_t webcfgMqttPublishSetHandler(rbusHandle_t handle, rbusProperty_t prop
 		return RBUS_ERROR_ELEMENT_DOES_NOT_EXIST;
 	}
 
-	rbusError_t retPsmSet = RBUS_ERROR_BUS_ERROR;
+	//rbusError_t retPsmSet = RBUS_ERROR_BUS_ERROR;
 	printf("Parameter name is %s \n", paramName);
 	rbusValueType_t type_t;
 	rbusValue_t paramValue_t = rbusProperty_GetValue(prop);
@@ -1449,7 +1451,7 @@ rbusError_t webcfgMqttPublishSetHandler(rbusHandle_t handle, rbusProperty_t prop
 	return RBUS_ERROR_SUCCESS;
 }
 
-rbusError_t webcfgMqttPublishSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSetHandlerOptions_t* opts)
+rbusError_t webcfgMqttPublishNotificationSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSetHandlerOptions_t* opts)
 {
 	(void) handle;
 	(void) opts;
@@ -1498,7 +1500,7 @@ rbusError_t webcfgMqttPublishSetHandler(rbusHandle_t handle, rbusProperty_t prop
 		}
 	}
 	return RBUS_ERROR_SUCCESS;
-}
+}*/
 rbusError_t webcfgMqttLocationIdGetHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
 {
 
@@ -1774,6 +1776,8 @@ rbusError_t webcfgMqttPortGetHandler(rbusHandle_t handle, rbusProperty_t propert
 
 void mqtt_subscribe()
 {
+	int rc;
+	char topic[256] = { 0 };
 	if(!subscribeFlag)
 	{
 		snprintf(topic,MAX_MQTT_LEN,"%s%s", MQTT_SUBSCRIBE_TOPIC_PREFIX,g_ClientID);
@@ -1808,9 +1812,9 @@ int regMqttDataModel()
 		{MQTT_PORT_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {webcfgMqttPortGetHandler, webcfgMqttPortSetHandler, NULL, NULL, NULL, NULL}},
 		{MQTT_CONNECTMODE_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {webcfgMqttConnModeGetHandler, webcfgMqttConnModeSetHandler, NULL, NULL, NULL, NULL}},
 		{MQTT_CONNECT_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {NULL, webcfgMqttConnectSetHandler, NULL, NULL, NULL, NULL}},
-		{MQTT_SUBSCRIBE_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {NULL, webcfgMqttSubscribeSetHandler, NULL, NULL, NULL, NULL}},
+		{MQTT_SUBSCRIBE_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {NULL, webcfgMqttSubscribeSetHandler, NULL, NULL, NULL, NULL}},/*
 		{MQTT_PUBLISHGET_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {NULL, webcfgMqttPublishSetHandler, NULL, NULL, NULL, NULL}},
-		{MQTT_PUBLISHNOTIF_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {NULL, webcfgMqttPublishNotificationSetHandler, NULL, NULL, NULL, NULL}},
+		{MQTT_PUBLISHNOTIF_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {NULL, webcfgMqttPublishNotificationSetHandler, NULL, NULL, NULL, NULL}},*/
 	};
 
 	ret = rbus_regDataElements(get_global_rbus_handle(), SINGLE_CONN_ELEMENTS, dataElements);

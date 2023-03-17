@@ -14,9 +14,10 @@
 
 set(PROJ_WEBCFG mqttConnManager)
 
+set(HEADERS mqtt_connector.h)
 set(SOURCES mqtt_connector.c)
 
-add_executable(mqttConnManager ${SOURCES} )
+add_executable(mqttConnManager ${SOURCES} ${HEADERS})
 set_property(TARGET mqttConnManager PROPERTY C_STANDARD 99)
 set(COMMON_LIBS -lpthread -lrbus -lmosquitto)
 

@@ -44,6 +44,8 @@
 #define DEVICE_PROPS_FILE       "/tmp/device.properties"
 #endif
 
+#define pComponentName "mqttCM"
+
 #define MQTT_CONFIG_FILE     "/tmp/.mqttconfig"
 #define MOSQ_TLS_VERSION     "tlsv1.2"
 #define OPENSYNC_CERT        "/etc/webcfg_mqtt/mqtt_cert_init.sh"
@@ -53,8 +55,6 @@
 #define SINGLE_CONN_ELEMENTS 9
 #define MAX_BUF_SIZE 255
 #define maxParamLen 128
-
-#define pComponentName "mqttCM"
 
 #define MQTT_SUBSCRIBE_TOPIC_PREFIX "x/to/"
 #define MQTT_PUBLISH_GET_TOPIC_PREFIX "x/fr/get/chi/"
@@ -110,5 +110,5 @@ int regMqttDataModel();
 void execute_mqtt_script(char *name);
 int getHostIPFromInterface(char *interface, char **ip);
 void mqtt_subscribe();
-int mqttCMRbusInit(const char *pComponentName);
+int mqttCMRbusInit();
 void mqttCMRbus_Uninit();
