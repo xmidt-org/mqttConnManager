@@ -52,7 +52,7 @@
 #define KEEPALIVE            60
 #define MQTT_PORT            443
 #define MAX_MQTT_LEN         128
-#define SINGLE_CONN_ELEMENTS 9
+#define SINGLE_CONN_ELEMENTS 10
 #define MAX_BUF_SIZE 255
 #define maxParamLen 128
 
@@ -70,6 +70,10 @@
 #define MQTT_SUBSCRIBE_PARAM      "Device.X_RDK_MQTT.Subscribe"
 #define MQTT_PUBLISHGET_PARAM     "Device.X_RDK_MQTT.Webconfig.PublishGET"
 #define MQTT_PUBLISHNOTIF_PARAM   "Device.X_RDK_MQTT.WebConfig.PublishNotification"
+
+#define WEBCFG_MQTT_ONCONNECT_CALLBACK "Device.X_RDK_MQTT.Webconfig.OnConnectCallback"
+#define WEBCFG_MQTT_SUBSCRIBE_CALLBACK "Device.X_RDK_ MQTT.Webconfig.OnSubcribeCallback"
+#define WEBCFG_MQTT_ONMESSAGE_CALLBACK "Device.X_RDK_MQTT.Webconfig.OnMessageCallback"
 
 #define MAX_MQTT_RETRY 8
 #define MQTT_RETRY_ERR -1
@@ -112,3 +116,4 @@ int getHostIPFromInterface(char *interface, char **ip);
 void mqtt_subscribe();
 int mqttCMRbusInit();
 void mqttCMRbus_Uninit();
+bool cm_mqtt_init();
