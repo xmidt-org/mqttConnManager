@@ -801,7 +801,9 @@ void publish_notify_mqtt(char *pub_topic, void *payload, ssize_t len)
 		char locationID[256] = { 0 };
 
 		Get_Mqtt_LocationId(locationID);
-		printf("locationID fetched from tr181 is %s\n", locationID);
+                printf("locationID fetched from tr181 is %s\n", locationID);
+                snprintf(publish_topic, MAX_MQTT_LEN, "%s%s/%s", MQTT_PUBLISH_NOTIFY_TOPIC_PREFIX, g_ClientID,locationID);
+
 		if(strlen(publish_topic)>0)
 		{
 			printf("publish_topic fetched from tr181 is %s\n", publish_topic);
