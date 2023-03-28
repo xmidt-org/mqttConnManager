@@ -52,7 +52,7 @@
 #define KEEPALIVE            60
 #define MQTT_PORT            443
 #define MAX_MQTT_LEN         128
-#define SINGLE_CONN_ELEMENTS 10
+#define SINGLE_CONN_ELEMENTS 12
 #define MAX_BUF_SIZE 255
 #define maxParamLen 128
 
@@ -97,7 +97,7 @@ void on_publish(struct mosquitto *mosq, void *obj, int mid);
 int writeToDBFile(char *db_file_path, char *data, size_t size);
 bool webcfg_mqtt_init();
 void get_from_file(char *key, char **val, char *filepath);
-void publish_notify_mqtt(char *pub_topic, void *payload, ssize_t len, char * dest);
+void publish_notify_mqtt(char *pub_topic, void *payload, ssize_t len);
 char * createMqttPubHeader(char * payload, char * dest, ssize_t * payload_len);
 int get_global_mqtt_connected();
 void reset_global_mqttConnected();

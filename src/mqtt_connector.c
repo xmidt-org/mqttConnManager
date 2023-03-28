@@ -63,8 +63,8 @@ static char* broker = NULL;
 static char* connMode = NULL;
 static char* connectMqtt = NULL;
 static char* subscribe = NULL;
-/*static char* publishget = NULL;
-static char *publishnotify = NULL;*/
+static char* publishget = NULL;
+static char *publishnotify = NULL;
 static int mqinit = 0;
 static rbusHandle_t rbus_handle;
 
@@ -646,27 +646,6 @@ void on_connect(struct mosquitto *mosq, void *obj, int reason_code)
 		printf("provider: rbusEvent_Publish onconnect event failed: %d\n", rc);
 	}
 
-	/*if(!subscribeFlag)
-	{
-		snprintf(topic,MAX_MQTT_LEN,"%s%s", MQTT_SUBSCRIBE_TOPIC_PREFIX,g_ClientID);
-		if(topic != NULL && strlen(topic)>0)
-		{
-			printf("subscribe to topic %s\n", topic);
-		}
-
-		rc = mosquitto_subscribe(mosq, NULL, topic, 1);
-
-		if(rc != MOSQ_ERR_SUCCESS)
-		{
-			printf("Error subscribing: %s\n", mosquitto_strerror(rc));
-			mosquitto_disconnect(mosq);
-		}
-		else
-		{
-			printf("subscribe to topic %s success\n", topic);
-			subscribeFlag = 1;
-		}
-	}*/
 }
 
 // callback called when the client gets DISCONNECT command from the broker
@@ -727,23 +706,6 @@ void on_subscribe(struct mosquitto *mosq, void *obj, int mid, int qos_count, con
 		{
                         have_subscription = true;
                 }
-		printf("on_subscribe: bootupsync %d\n", bootupsync);
-		if(!bootupsync)
-		{
-			printf("mqtt is connected and subscribed to topic, trigger bootup sync to cloud.\n");
-
-			//int ret = triggerBootupSync();
-			int ret =1; //TODO: Required bootupsync logic
-			if(ret)
-			{
-				printf("Triggered bootup sync via mqtt\n");
-			}
-			else
-			{
-				printf("Failed to trigger bootup sync via mqtt\n");
-			}
-			bootupsync = 1;
-		}
         }
         if(have_subscription == false)
 	{
@@ -829,23 +791,9 @@ void on_publish(struct mosquitto *mosq, void *obj, int mid)
 }
 
 /* This function pretends to read some data from a sensor and publish it.*/
-void publish_notify_mqtt(char *pub_topic, void *payload, ssize_t len, char * dest)
+void publish_notify_mqtt(char *pub_topic, void *payload, ssize_t len)
 {
         int rc;
-	if(dest != NULL)
-	{
-		ssize_t payload_len = 0;
-		char * pub_payload = createMqttPubHeader(payload, dest, &payload_len);
-		if(pub_payload != NULL)
-		{
-			len = payload_len;
-			free(payload);
-			payload = (char *) malloc(sizeof(char) * 1024);
-			payload = strdup(pub_payload);
-
-			free(pub_payload);
-		}
-	}
 
 	if(pub_topic == NULL)
 	{
@@ -918,51 +866,7 @@ void get_from_file(char *key, char **val, char *filepath)
                 printf("val fetched is %s\n", *val);
         }
 }
-/*
-int triggerBootupSync()
-{
-	char *mqttheaderList = NULL;
-	mqttheaderList = (char *) malloc(sizeof(char) * 1024);
-	char *pub_get_topic = NULL;
-	if(mqttheaderList != NULL)
-	{
-		printf("B4 createMqttHeader\n");
-		createMqttHeader(&mqttheaderList);
-		if(mqttheaderList !=NULL)
-		{
-			printf("mqttheaderList generated is \n%s len %zu\n", mqttheaderList, strlen(mqttheaderList));
-			char publish_get_topic[256] = { 0 };
-			char locationID[256] = { 0 };
-			Get_Mqtt_LocationId(locationID);
-			printf("locationID is %s\n", locationID);
-			snprintf(publish_get_topic, MAX_MQTT_LEN, "%s%s/%s", MQTT_PUBLISH_GET_TOPIC_PREFIX, g_ClientID,locationID);
-			if(strlen(publish_get_topic) >0)
-			{
-				pub_get_topic = strdup(publish_get_topic);
-				printf("pub_get_topic from tr181 is %s\n", pub_get_topic);
-				publish_notify_mqtt(pub_get_topic, (void*)mqttheaderList, strlen(mqttheaderList), NULL);
-				printf("triggerBootupSync published to topic %s\n", pub_get_topic);
-			}
-			else
-			{
-				printf("Failed to fetch publish_get_topic\n");
-			}
-		}
-		else
-		{
-			printf("Failed to generate mqttheaderList\n");
-			return 0;
-		}
-	}
-	else
-	{
-		printf("Failed to allocate mqttheaderList\n");
-		return 0;
-	}
-	printf("triggerBootupSync end\n");
-	return 1;
-}
-*/
+
 int validateForMqttInit()
 {
 	if(mqinit == 0)
@@ -1487,7 +1391,7 @@ rbusError_t webcfgMqttSubscribeSetHandler(rbusHandle_t handle, rbusProperty_t pr
 	}
 	return RBUS_ERROR_SUCCESS;
 }
-/*
+
 rbusError_t webcfgMqttPublishSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSetHandlerOptions_t* opts)
 {
 	(void) handle;
@@ -1513,8 +1417,8 @@ rbusError_t webcfgMqttPublishSetHandler(rbusHandle_t handle, rbusProperty_t prop
 
 	if(strncmp(paramName, MQTT_PUBLISHGET_PARAM, maxParamLen) == 0) {
 
-		if(type_t == RBUS_BYTES) {
-			void* data = rbusValue_SetBytes(paramValue_t, NULL, 0);
+		if(type_t == RBUS_STRING) {
+			char* data = rbusValue_ToString(paramValue_t, NULL, 0);
 			if(data) {
 					printf("Call datamodel function  with data %s\n", (char*)data);
 
@@ -1538,7 +1442,7 @@ rbusError_t webcfgMqttPublishSetHandler(rbusHandle_t handle, rbusProperty_t prop
 						{
 							pub_get_topic = strdup(publish_get_topic);
 							printf("pub_get_topic from tr181 is %s\n", pub_get_topic);
-							publish_notify_mqtt(pub_get_topic, (void*)publishget, strlen(publishget), NULL);
+							publish_notify_mqtt(pub_get_topic, (void*)publishget, strlen(publishget));
 							printf("triggerBootupSync published to topic %s\n", pub_get_topic);
 						}
 						else
@@ -1569,7 +1473,6 @@ rbusError_t webcfgMqttPublishNotificationSetHandler(rbusHandle_t handle, rbusPro
 		return RBUS_ERROR_ELEMENT_DOES_NOT_EXIST;
 	}
 
-	rbusError_t retPsmSet = RBUS_ERROR_BUS_ERROR;
 	printf("Parameter name is %s \n", paramName);
 	rbusValueType_t type_t;
 	rbusValue_t paramValue_t = rbusProperty_GetValue(prop);
@@ -1582,8 +1485,8 @@ rbusError_t webcfgMqttPublishNotificationSetHandler(rbusHandle_t handle, rbusPro
 
 	if(strncmp(paramName, MQTT_PUBLISHNOTIF_PARAM, maxParamLen) == 0) {
 
-		if(type_t == RBUS_BYTES) {
-			void* data = rbusValue_SetBytes(paramValue_t, NULL, 0);
+		if(type_t == RBUS_STRING) {
+			char* data = rbusValue_ToString(paramValue_t, NULL, 0);
 			if(data) {
 					printf("Call datamodel function  with data %s\n", (char*)data);
 
@@ -1596,7 +1499,7 @@ rbusError_t webcfgMqttPublishNotificationSetHandler(rbusHandle_t handle, rbusPro
 					printf("publish_notify_mqtt with json string payload\n");
 					char *payload_str = strdup(publishnotify);
 					printf("payload_str %s len %zu\n", payload_str, strlen(payload_str));
-					publish_notify_mqtt(NULL, payload_str, strlen(payload_str), "destination"); //TODO: Need to finalize how mqttCM can get webcfg destination in this tr181?
+					publish_notify_mqtt(NULL, payload_str, strlen(payload_str));
 					//WEBCFG_FREE(payload_str);
 					printf("publish_notify_mqtt done\n");
 				}
@@ -1606,7 +1509,7 @@ rbusError_t webcfgMqttPublishNotificationSetHandler(rbusHandle_t handle, rbusPro
 		}
 	}
 	return RBUS_ERROR_SUCCESS;
-}*/
+}
 rbusError_t webcfgMqttLocationIdGetHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
 {
 
@@ -1996,9 +1899,9 @@ int regMqttDataModel()
 		{MQTT_PORT_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {webcfgMqttPortGetHandler, webcfgMqttPortSetHandler, NULL, NULL, NULL, NULL}},
 		{MQTT_CONNECTMODE_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {webcfgMqttConnModeGetHandler, webcfgMqttConnModeSetHandler, NULL, NULL, NULL, NULL}},
 		{MQTT_CONNECT_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {NULL, webcfgMqttConnectSetHandler, NULL, NULL, NULL, NULL}},
-		{MQTT_SUBSCRIBE_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {NULL, webcfgMqttSubscribeSetHandler, NULL, NULL, NULL, NULL}},/*
+		{MQTT_SUBSCRIBE_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {NULL, webcfgMqttSubscribeSetHandler, NULL, NULL, NULL, NULL}},
 		{MQTT_PUBLISHGET_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {NULL, webcfgMqttPublishSetHandler, NULL, NULL, NULL, NULL}},
-		{MQTT_PUBLISHNOTIF_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {NULL, webcfgMqttPublishNotificationSetHandler, NULL, NULL, NULL, NULL}},*/
+		{MQTT_PUBLISHNOTIF_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {NULL, webcfgMqttPublishNotificationSetHandler, NULL, NULL, NULL, NULL}},
 		{WEBCFG_MQTT_ONCONNECT_CALLBACK, RBUS_ELEMENT_TYPE_EVENT, {NULL, NULL, NULL, NULL, webcfgMqttOnConnectHandler, NULL}},
 		{WEBCFG_MQTT_SUBSCRIBE_CALLBACK, RBUS_ELEMENT_TYPE_EVENT, {NULL, NULL, NULL, NULL, webcfgMqttSubscribeHandler, NULL}},
 		{WEBCFG_MQTT_ONMESSAGE_CALLBACK, RBUS_ELEMENT_TYPE_EVENT, {NULL, NULL, NULL, NULL, webcfgMqttOnMessageHandler, NULL}},
