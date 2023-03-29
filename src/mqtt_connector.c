@@ -248,12 +248,9 @@ void get_webCfg_interface(char **interface)
 
 void checkMqttParamSet()
 {
-	printf("checkMqttParamSet\n");
 	if( !validateForMqttInit() && connectFlag)
 	{
 		printf("Validation success for mqtt parameters, proceed to mqtt init\n");
-		/*cm_mqtt_init();
-		printf("cm_mqtt_init done\n");*/
 	}
 	else
 	{
@@ -514,7 +511,6 @@ bool cm_mqtt_init()
 					tls_count = 0;
 					//connect to mqtt broker
 					mosquitto_connect_callback_set(mosq, on_connect);
-					printf("set disconnect callback\n");
 					mosquitto_disconnect_callback_set(mosq, on_disconnect);
 					mosquitto_subscribe_callback_set(mosq, on_subscribe);
 					mosquitto_message_callback_set(mosq, on_message);
@@ -1378,7 +1374,7 @@ rbusError_t webcfgMqttSubscribeSetHandler(rbusHandle_t handle, rbusProperty_t pr
 					free(data);
 					printf("mqtt subscribe %s\n", subscribe);
 					mqtt_subscribe();
-					printf("mqtt_subscribe\n");
+					printf("mqtt_subscribe done\n");
 				}
 				else
 				{
@@ -1497,7 +1493,6 @@ rbusError_t webcfgMqttPublishNotificationSetHandler(rbusHandle_t handle, rbusPro
 						publishnotify= NULL;
 					}
 					publishnotify = data;
-					printf("publishnotify received is \n%s len %zu\n", publishnotify, strlen(publishnotify));
 					printf("publish_notify_mqtt with json string payload\n");
 					char *payload_str = strdup(publishnotify);
 					printf("payload_str %s len %zu\n", payload_str, strlen(payload_str));
