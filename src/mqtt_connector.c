@@ -71,6 +71,7 @@ static rbusHandle_t rbus_handle;
 int webcfg_onconnect = 0;
 int webcfg_subscribe = 0;
 int webcfg_onmessage = 0;
+int webcfg_onpublish = 0;
 
 void get_webCfg_interface(char **interface);
 /*
@@ -783,7 +784,37 @@ void on_message(struct mosquitto *mosq, void *obj, const struct mosquitto_messag
 
 void on_publish(struct mosquitto *mosq, void *obj, int mid)
 {
-        printf("Message with mid %d has been published.\n", mid);
+	printf("Message with mid %d has been published.\n", mid);
+
+	if(webcfg_onpublish)
+	{
+	    char msg[256] = { 0 };
+	    rbusEvent_t event = {0};
+	    rbusObject_t data;
+	    rbusValue_t value;
+
+	    snprintf(msg, MAX_MQTT_LEN, "Message with mid %d has been published.", mid);
+
+	    printf("publishing Event\n");
+
+	    rbusValue_Init(&value);
+	    rbusValue_SetString(value, msg);
+
+	    rbusObject_Init(&data, NULL);
+	    rbusObject_SetValue(data, "value", value);
+
+	    event.name = WEBCFG_MQTT_ONPUBLISH_CALLBACK;
+	    event.data = data;
+	    event.type = RBUS_EVENT_GENERAL;
+
+	    rbusError_t rc = rbusEvent_Publish(rbus_handle, &event);
+
+	    rbusValue_Release(value);
+	    rbusObject_Release(data);
+
+	    if(rc != RBUS_ERROR_SUCCESS)
+		printf("provider: rbusEvent_Publish Subscribe event failed: %d\n", rc);
+	}
 }
 
 /* This function pretends to read some data from a sensor and publish it.*/
@@ -1486,16 +1517,17 @@ rbusError_t webcfgMqttPublishNotificationSetHandler(rbusHandle_t handle, rbusPro
 		if(type_t == RBUS_STRING) {
 			char* data = rbusValue_ToString(paramValue_t, NULL, 0);
 			if(data) {
-					printf("Call datamodel function  with data %s\n", (char*)data);
+					//printf("Call datamodel function  with data %s\n", (char*)data);
 
 					if(publishnotify) {
 						free(publishnotify);
 						publishnotify= NULL;
 					}
 					publishnotify = data;
+					//printf("publishnotify received is \n%s len %zu\n", publishnotify, strlen(publishnotify));
 					printf("publish_notify_mqtt with json string payload\n");
 					char *payload_str = strdup(publishnotify);
-					printf("payload_str %s len %zu\n", payload_str, strlen(payload_str));
+					//printf("payload_str %s len %zu\n", payload_str, strlen(payload_str));
 					publish_notify_mqtt(NULL, payload_str, strlen(payload_str));
 					//WEBCFG_FREE(payload_str);
 					printf("publish_notify_mqtt done\n");
@@ -1858,6 +1890,32 @@ rbusError_t webcfgMqttOnMessageHandler(rbusHandle_t handle, rbusEventSubAction_t
     return RBUS_ERROR_SUCCESS;
 }
 
+rbusError_t webcfgMqttOnPublishHandler(rbusHandle_t handle, rbusEventSubAction_t action, const char* eventName, rbusFilter_t filter, int32_t interval, bool* autoPublish)
+{
+    (void)handle;
+    (void)filter;
+    (void)autoPublish;
+    (void)interval;
+
+    printf(
+        "webcfgMqttOnPublishHandler called:\n" \
+        "\taction=%s\n" \
+        "\teventName=%s\n",
+        action == RBUS_EVENT_ACTION_SUBSCRIBE ? "subscribe" : "unsubscribe",
+        eventName);
+
+    if(!strcmp(WEBCFG_MQTT_ONPUBLISH_CALLBACK, eventName))
+    {
+        webcfg_onpublish = action == RBUS_EVENT_ACTION_SUBSCRIBE ? 1 : 0;
+    }
+    else
+    {
+        printf("provider: webcfgMqttOnPublishHandler unexpected eventName %s\n", eventName);
+    }
+
+    return RBUS_ERROR_SUCCESS;
+}
+
 void mqtt_subscribe()
 {
 	int rc;
@@ -1902,6 +1960,7 @@ int regMqttDataModel()
 		{WEBCFG_MQTT_ONCONNECT_CALLBACK, RBUS_ELEMENT_TYPE_EVENT, {NULL, NULL, NULL, NULL, webcfgMqttOnConnectHandler, NULL}},
 		{WEBCFG_MQTT_SUBSCRIBE_CALLBACK, RBUS_ELEMENT_TYPE_EVENT, {NULL, NULL, NULL, NULL, webcfgMqttSubscribeHandler, NULL}},
 		{WEBCFG_MQTT_ONMESSAGE_CALLBACK, RBUS_ELEMENT_TYPE_EVENT, {NULL, NULL, NULL, NULL, webcfgMqttOnMessageHandler, NULL}},
+		{WEBCFG_MQTT_ONPUBLISH_CALLBACK, RBUS_ELEMENT_TYPE_EVENT, {NULL, NULL, NULL, NULL, webcfgMqttOnPublishHandler, NULL}},
 	};
 
 	ret = rbus_regDataElements(get_global_rbus_handle(), SINGLE_CONN_ELEMENTS, dataElements);
