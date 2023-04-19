@@ -406,7 +406,6 @@ bool cm_mqtt_init()
 	{
 
 		Get_Mqtt_Broker(hostname);
-		snprintf(hostname,255,"hostname");
 		if(hostname != NULL && strlen(hostname)>0)
 		{
 			MqttCMInfo("The hostname is %s\n", hostname);
