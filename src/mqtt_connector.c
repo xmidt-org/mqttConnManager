@@ -95,6 +95,11 @@ pthread_cond_t mqtt_retry_con=PTHREAD_COND_INITIALIZER;
 pthread_mutex_t mqtt_mut=PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t mqtt_con=PTHREAD_COND_INITIALIZER;
 
+const char *rdk_logger_module_fetch(void)
+{
+    return "LOG.RDK.MQTTCM";
+}
+
 int mqttCMRbusInit()
 {
 	int ret = RBUS_ERROR_SUCCESS;
