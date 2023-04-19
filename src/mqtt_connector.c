@@ -20,6 +20,9 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
+#ifdef INCLUDE_BREAKPAD
+#include "breakpad_wrapper.h"
+#endif
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <arpa/nameser.h>
@@ -2044,7 +2047,10 @@ int writeToDBFile(char *db_file_path, char *data, size_t size)
 
 int main()
 {
-	MqttCMInfo("********** Starting component: %s **********\n ", pComponentName);
+	#ifdef INCLUDE_BREAKPAD
+		breakpad_ExceptionHandler();
+	#endif
+	printf("********** Starting component: %s **********\n ", pComponentName);
 	mqttCMRbusInit();
 	MqttCMInfo("Registering mqtt CM parameters\n");
 	regMqttDataModel();
