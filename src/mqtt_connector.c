@@ -46,7 +46,8 @@
 int __attribute__((weak)) Get_Mqtt_LocationId( char *pString);
 int __attribute__((weak)) Get_Mqtt_Broker( char *pString);
 int __attribute__((weak)) Get_Mqtt_Port( char *pString);
-int __attribute__((weak)) Get_Mqtt_ClientId( char *pString);
+//int __attribute__((weak)) Get_Mqtt_ClientId( char *pString);
+int __attribute__((weak)) get_deviceMAC_Mqtt( char *pString);
 
 static int g_mqttConnected = 0;
 //static int systemStatus = 0;
@@ -197,9 +198,15 @@ int Get_Mqtt_LocationId( char *pString)
     UNUSED(pString);
     return 0;
 }
-int Get_Mqtt_ClientId( char *pString)
+/*int Get_Mqtt_ClientId( char *pString)
 {
     MqttCMDebug("Inside Get_Mqtt_ClientId weak function.\n");
+    UNUSED(pString);
+    return 0;
+}*/
+int get_deviceMAC_Mqtt(char *pString)
+{
+    MqttCMDebug("Inside get_deviceMAC_Mqtt weak function.\n");
     UNUSED(pString);
     return 0;
 }
@@ -397,8 +404,8 @@ bool cm_mqtt_init()
 
 	int clean_session = true;
 
-	Get_Mqtt_ClientId(g_ClientID);
-	MqttCMInfo("g_ClientID fetched from Get_Mqtt_ClientId is %s\n", g_ClientID);
+	get_deviceMAC_Mqtt(g_ClientID);
+	MqttCMInfo("g_ClientID fetched from get_deviceMAC_Mqtt is %s\n", g_ClientID);
 	client_id = strdup(g_ClientID);
 	MqttCMInfo("client_id is %s\n", client_id);
 
@@ -1009,7 +1016,7 @@ void fetchMqttParamsFromDB()
 		broker = strdup(tmpBroker);
 	}
 
-	Get_Mqtt_ClientId(tmpClientId);
+	get_deviceMAC_Mqtt(tmpClientId);
 	if(tmpClientId[0] != '\0')
 	{
 		clientId = strdup(tmpClientId);
