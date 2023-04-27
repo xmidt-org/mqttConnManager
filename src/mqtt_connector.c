@@ -67,8 +67,8 @@ pthread_cond_t  mqtt1_con= PTHREAD_COND_INITIALIZER;
 static int bootupsync = 0;
 static int connectFlag = 0;
 static int subscribeFlag = 0;
-static char* locationId =NULL;
-static char* clientId =NULL;
+static char* locationId = "na";
+static char* clientId ="E0DBD1DC8B38";
 static char* Port =NULL;
 static char* broker = NULL;
 static char* connMode = NULL;
@@ -403,18 +403,21 @@ bool cm_mqtt_init()
 	char *bind_interface = NULL;
 	char *hostip = NULL;
 
+	//get_deviceMAC_Mqtt(g_ClientID);
+	strcpy(g_ClientID,"E0DBD1DC8B38");
+
 	checkMqttParamSet();
 	res_init();
 	MqttCMInfo("Initializing MQTT library\n");
 
 	mosquitto_lib_init();
 
+	mosquitto_int_option(mosq, MOSQ_OPT_PROTOCOL_VERSION, MQTT_PROTOCOL_V5);
+
 	int clean_session = true;
 
-	get_deviceMAC_Mqtt(g_ClientID);
 	MqttCMInfo("g_ClientID fetched from get_deviceMAC_Mqtt is %s\n", g_ClientID);
-	//client_id = strdup(g_ClientID);
-	client_id = strdup("E0DBD1DC8B38");
+	client_id = strdup(g_ClientID);
 	MqttCMInfo("client_id is %s\n", client_id);
 
 	if(client_id !=NULL)
@@ -950,7 +953,7 @@ int validateForMqttInit()
 	if(mqinit == 0)
 	{
 		
-		if( locationId == NULL)
+		if( locationId != NULL)
 		{
 			locationId = strdup("na");
 			
