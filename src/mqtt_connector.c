@@ -43,11 +43,13 @@
 #include "mqtt_connector.h"
 #include "mqtt_log.h"
 
+#if 0
 int __attribute__((weak)) Get_Mqtt_LocationId( char *pString);
 int __attribute__((weak)) Get_Mqtt_Broker( char *pString);
 int __attribute__((weak)) Get_Mqtt_Port( char *pString);
 //int __attribute__((weak)) Get_Mqtt_ClientId( char *pString);
 int __attribute__((weak)) get_deviceMAC_Mqtt( char *pString);
+#endif
 
 static int g_mqttConnected = 0;
 //static int systemStatus = 0;
@@ -191,7 +193,7 @@ pthread_mutex_t *get_global_mqtt_mut(void)
 {
     return &mqtt_mut;
 }
-
+#if 0
 int Get_Mqtt_LocationId( char *pString)
 {
     MqttCMDebug("Inside Get_Mqtt_LocationId weak function.\n");
@@ -222,7 +224,7 @@ int Get_Mqtt_Port( char *pString)
     UNUSED(pString);
     return 0;
 }
-
+#endif
 void get_webCfg_interface(char **interface)
 {
 #if ! defined(DEVICE_EXTENDER)
