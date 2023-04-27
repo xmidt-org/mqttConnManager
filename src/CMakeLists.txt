@@ -19,7 +19,7 @@ set(SOURCES mqtt_connector.c)
 
 add_executable(mqttConnManager ${SOURCES} ${HEADERS})
 set_property(TARGET mqttConnManager PROPERTY C_STANDARD 99)
-set(COMMON_LIBS -lpthread -lrbus -lmosquitto -lcimplog)
+set(COMMON_LIBS -lpthread -lrbus -lmosquitto -lcimplog -luuid)
 
 target_link_libraries (mqttConnManager ${CMAKE_THREAD_LIBS_INIT} ${COMMON_LIBS})
 install (TARGETS mqttConnManager DESTINATION bin)

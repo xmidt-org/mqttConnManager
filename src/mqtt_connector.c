@@ -20,6 +20,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
+#include <uuid/uuid.h>
+#include <time.h>
 #ifdef INCLUDE_BREAKPAD
 #include "breakpad_wrapper.h"
 #endif
@@ -411,7 +413,8 @@ bool cm_mqtt_init()
 
 	get_deviceMAC_Mqtt(g_ClientID);
 	MqttCMInfo("g_ClientID fetched from get_deviceMAC_Mqtt is %s\n", g_ClientID);
-	client_id = strdup(g_ClientID);
+	//client_id = strdup(g_ClientID);
+	client_id = strdup("E0DBD1DC8B38");
 	MqttCMInfo("client_id is %s\n", client_id);
 
 	if(client_id !=NULL)
@@ -868,7 +871,33 @@ void publish_notify_mqtt(char *pub_topic, void *payload, ssize_t len)
 	}
 	MqttCMInfo("Payload published is \n%s\n", (char*)payload);
 	//writeToDBFile("/tmp/payload.bin", (char *)payload, len);
-        rc = mosquitto_publish(mosq, NULL, pub_topic, len, payload, 2, false);
+
+	mosquitto_property *props = NULL;
+	uuid_t uuid;
+	uuid_generate_time(uuid);
+
+	struct timespec ts;
+	clock_gettime(CLOCK_REALTIME, &ts);
+
+	
+	uint64_t timestamp = (ts.tv_sec * 10000000ULL) + (ts.tv_nsec/100ULL) + 0x01b21dd213814000ULL;
+	uuid_t uuid2;
+	memcpy(uuid2, uuid, sizeof(uuid_t));
+	memcpy(uuid2+6, &timestamp, sizeof(uint64_t));
+
+	char uuid_str[37];
+	uuid_unparse(uuid2, uuid_str);
+
+	int ret = mosquitto_property_add_string_pair(&props, MQTT_PROP_USER_PROPERTY, "UUIDv1", uuid_str);
+
+	if(ret != MOSQ_ERR_SUCCESS)
+	{
+		printf("Failed to add property: %d\n", ret);
+	}
+
+        //rc = mosquitto_publish(mosq, NULL, pub_topic, len, payload, 2, false);
+
+	rc = mosquitto_publish_v5(mosq, NULL, pub_topic, len, payload, 2, false, props);
 	MqttCMInfo("Publish rc %d\n", rc);
         if(rc != MOSQ_ERR_SUCCESS)
 	{
@@ -920,6 +949,13 @@ int validateForMqttInit()
 {
 	if(mqinit == 0)
 	{
+		
+		if( locationId == NULL)
+		{
+			locationId = strdup("na");
+			
+		}
+		
 		if (locationId != NULL && clientId != NULL && broker != NULL)
 		{
 			if ((strlen(locationId) != 0) && (strlen(clientId) != 0) && (strlen(broker) !=0) && (connectFlag == 1))
