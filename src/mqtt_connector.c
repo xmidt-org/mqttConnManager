@@ -43,7 +43,7 @@
 #include "mqtt_connector.h"
 #include "mqtt_log.h"
 
-#if 0
+#if 1
 int __attribute__((weak)) Get_Mqtt_LocationId( char *pString);
 int __attribute__((weak)) Get_Mqtt_Broker( char *pString);
 int __attribute__((weak)) Get_Mqtt_Port( char *pString);

@@ -37,6 +37,7 @@
 #include <rbus/rbus_object.h>
 #include <rbus/rbus_property.h>
 #include <rbus/rbus_value.h>
+#include <cimplog.h>
 
 #ifdef BUILD_YOCTO
 #define DEVICE_PROPS_FILE       "/etc/device.properties"
