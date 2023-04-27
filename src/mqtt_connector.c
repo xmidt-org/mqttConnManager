@@ -49,6 +49,8 @@ int __attribute__((weak)) Get_Mqtt_Broker( char *pString);
 int __attribute__((weak)) Get_Mqtt_Port( char *pString);
 //int __attribute__((weak)) Get_Mqtt_ClientId( char *pString);
 int __attribute__((weak)) get_deviceMAC_Mqtt( char *pString);
+int __attribute__((weak)) rbus_GetValueFromDB( char* paramName, char** paramValue);
+int __attribute__((weak)) rbus_StoreValueIntoDB(char *paramName, char *value);
 #endif
 
 static int g_mqttConnected = 0;
@@ -123,6 +125,7 @@ void mqttCMRbus_Uninit()
     rbus_close(rbus_handle);
 }
 
+#if 0
 int rbus_GetValueFromDB( char* paramName, char** paramValue)
 {
 	MqttCMInfo("Inside rbus_GetValueFromDB weak fn\n");
@@ -138,7 +141,7 @@ int rbus_StoreValueIntoDB(char *paramName, char *value)
 	UNUSED(value);
 	return 0;
 }
-
+#endif
 rbusHandle_t get_global_rbus_handle(void)
 {
      return rbus_handle;
