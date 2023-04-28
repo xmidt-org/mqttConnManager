@@ -1027,18 +1027,21 @@ void fetchMqttParamsFromDB()
 	//char tmpClientId[64]={'\0'};
 	char tmpPort[32]={'\0'};
 
+	MqttCMInfo("before locationid\n");
 	Get_Mqtt_LocationId(tmpLocationId);
 	if(tmpLocationId[0] != '\0')
 	{
 		locationId = strdup(tmpLocationId);
 	}
 
+	MqttCMInfo("bedore broker\n");
 	Get_Mqtt_Broker(tmpBroker);
 	if(tmpBroker[0] != '\0')
 	{
 		broker = strdup(tmpBroker);
 	}
-
+	
+	MqttCMInfo("Before port\n");
 	/*if( get_clientId() != NULL && strlen(get_clientId()) !=0 )
 	{
 
@@ -1050,6 +1053,7 @@ void fetchMqttParamsFromDB()
 	      }
 	}*/
 
+	MqttCMInfo("Before port\n");
 	Get_Mqtt_Port(tmpPort);
 	if(tmpPort[0] != '\0')
 	{
