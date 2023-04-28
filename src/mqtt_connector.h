@@ -53,7 +53,7 @@
 #define KEEPALIVE            60
 #define MQTT_PORT            443
 #define MAX_MQTT_LEN         128
-#define SINGLE_CONN_ELEMENTS 13
+#define SINGLE_CONN_ELEMENTS 12
 #define MAX_BUF_SIZE 255
 #define maxParamLen 128
 

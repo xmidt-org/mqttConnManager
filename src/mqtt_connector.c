@@ -20,6 +20,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
+#include <uuid/uuid.h>
+#include <time.h>
 #ifdef INCLUDE_BREAKPAD
 #include "breakpad_wrapper.h"
 #endif
@@ -48,9 +50,9 @@ int __attribute__((weak)) Get_Mqtt_LocationId( char *pString);
 int __attribute__((weak)) Get_Mqtt_Broker( char *pString);
 int __attribute__((weak)) Get_Mqtt_Port( char *pString);
 //int __attribute__((weak)) Get_Mqtt_ClientId( char *pString);
-int __attribute__((weak)) get_deviceMAC_Mqtt( char *pString);
 int __attribute__((weak)) rbus_GetValueFromDB( char* paramName, char** paramValue);
 int __attribute__((weak)) rbus_StoreValueIntoDB(char *paramName, char *value);
+char* __attribute__((weak)) get_clientId();
 #endif
 
 static int g_mqttConnected = 0;
@@ -65,8 +67,8 @@ pthread_cond_t  mqtt1_con= PTHREAD_COND_INITIALIZER;
 static int bootupsync = 0;
 static int connectFlag = 0;
 static int subscribeFlag = 0;
-static char* locationId =NULL;
-static char* clientId =NULL;
+static char* locationId = NULL;
+static char* clientId = NULL;
 static char* Port =NULL;
 static char* broker = NULL;
 static char* connMode = NULL;
@@ -203,17 +205,11 @@ int Get_Mqtt_LocationId( char *pString)
     UNUSED(pString);
     return 0;
 }
-/*int Get_Mqtt_ClientId( char *pString)
+
+char * get_clientId()
 {
-    MqttCMDebug("Inside Get_Mqtt_ClientId weak function.\n");
-    UNUSED(pString);
-    return 0;
-}*/
-int get_deviceMAC_Mqtt(char *pString)
-{
-    MqttCMDebug("Inside get_deviceMAC_Mqtt weak function.\n");
-    UNUSED(pString);
-    return 0;
+    MqttCMDebug("Inside get_clientId weak function.\n");
+    return "";
 }
 int Get_Mqtt_Broker( char *pString)
 {
@@ -401,6 +397,12 @@ bool cm_mqtt_init()
 	char *bind_interface = NULL;
 	char *hostip = NULL;
 
+	if( get_clientId() != NULL && strlen(get_clientId()) !=0 )
+	{
+	      strncpy(g_ClientID, get_clientId(), sizeof(g_ClientID)-1);
+	      MqttCMInfo("g_ClientID fetched from get_clientId is %s\n", g_ClientID);
+	}
+
 	checkMqttParamSet();
 	res_init();
 	MqttCMInfo("Initializing MQTT library\n");
@@ -409,14 +411,11 @@ bool cm_mqtt_init()
 
 	int clean_session = true;
 
-	get_deviceMAC_Mqtt(g_ClientID);
-	MqttCMInfo("g_ClientID fetched from get_deviceMAC_Mqtt is %s\n", g_ClientID);
 	client_id = strdup(g_ClientID);
 	MqttCMInfo("client_id is %s\n", client_id);
 
 	if(client_id !=NULL)
 	{
-
 		Get_Mqtt_Broker(hostname);
 		if(hostname != NULL && strlen(hostname)>0)
 		{
@@ -461,7 +460,7 @@ bool cm_mqtt_init()
 				MqttCMError("Error initializing mosq instance\n");
 				return MOSQ_ERR_NOMEM;
 			}
-
+			mosquitto_int_option(mosq, MOSQ_OPT_PROTOCOL_VERSION, MQTT_PROTOCOL_V5);
 			struct libmosquitto_tls *tls;
 			tls = malloc (sizeof (struct libmosquitto_tls));
 			if(tls)
@@ -868,7 +867,26 @@ void publish_notify_mqtt(char *pub_topic, void *payload, ssize_t len)
 	}
 	MqttCMInfo("Payload published is \n%s\n", (char*)payload);
 	//writeToDBFile("/tmp/payload.bin", (char *)payload, len);
-        rc = mosquitto_publish(mosq, NULL, pub_topic, len, payload, 2, false);
+
+	mosquitto_property *props = NULL;
+	uuid_t uuid;
+	uuid_generate_time(uuid);
+
+	char uuid_str[37];
+	uuid_unparse(uuid, uuid_str);
+
+	MqttCMInfo("uuidv1 generated is %s\n", uuid_str);
+
+	int ret = mosquitto_property_add_string_pair(&props, MQTT_PROP_USER_PROPERTY, "UUIDv1", uuid_str);
+
+	if(ret != MOSQ_ERR_SUCCESS)
+	{
+		printf("Failed to add property: %d\n", ret);
+	}
+
+        //rc = mosquitto_publish(mosq, NULL, pub_topic, len, payload, 2, false);
+
+	rc = mosquitto_publish_v5(mosq, NULL, pub_topic, len, payload, 2, false, props);
 	MqttCMInfo("Publish rc %d\n", rc);
         if(rc != MOSQ_ERR_SUCCESS)
 	{
@@ -1009,24 +1027,33 @@ void fetchMqttParamsFromDB()
 	char tmpClientId[64]={'\0'};
 	char tmpPort[32]={'\0'};
 
+	MqttCMInfo("before locationid\n");
 	Get_Mqtt_LocationId(tmpLocationId);
 	if(tmpLocationId[0] != '\0')
 	{
 		locationId = strdup(tmpLocationId);
 	}
 
+	MqttCMInfo("bedore broker\n");
 	Get_Mqtt_Broker(tmpBroker);
 	if(tmpBroker[0] != '\0')
 	{
 		broker = strdup(tmpBroker);
 	}
-
-	get_deviceMAC_Mqtt(tmpClientId);
-	if(tmpClientId[0] != '\0')
+	
+	MqttCMInfo("Before port\n");
+	if( get_clientId() != NULL && strlen(get_clientId()) !=0 )
 	{
-		clientId = strdup(tmpClientId);
+
+              strncpy(tmpClientId, get_clientId(), sizeof(tmpClientId)-1);
+
+              if(tmpClientId[0] != '\0')
+	      {
+		   clientId = strdup(tmpClientId);
+	      }
 	}
 
+	MqttCMInfo("Before port\n");
 	Get_Mqtt_Port(tmpPort);
 	if(tmpPort[0] != '\0')
 	{
@@ -1138,63 +1165,6 @@ rbusError_t webcfgMqttBrokerSetHandler(rbusHandle_t handle, rbusProperty_t prop,
 				else
 				{
 					MqttCMInfo("psm_set success ret %d for parameter %s and value %s\n", retPsmSet, paramName, broker);
-				}
-				validateForMqttInit();
-			}
-		} else {
-			MqttCMError("Unexpected value type for property %s\n", paramName);
-			return RBUS_ERROR_INVALID_INPUT;
-		}
-	}
-	return RBUS_ERROR_SUCCESS;
-}
-
-rbusError_t webcfgMqttClientIdSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSetHandlerOptions_t* opts)
-{
-	(void) handle;
-	(void) opts;
-	char const* paramName = rbusProperty_GetName(prop);
-
-	if(strncmp(paramName, MQTT_CLIENTID_PARAM, maxParamLen) != 0)
-	{
-		MqttCMError("Unexpected parameter = %s\n", paramName);
-		return RBUS_ERROR_ELEMENT_DOES_NOT_EXIST;
-	}
-
-	rbusError_t retPsmSet = RBUS_ERROR_BUS_ERROR;
-	MqttCMInfo("Parameter name is %s \n", paramName);
-	rbusValueType_t type_t;
-	rbusValue_t paramValue_t = rbusProperty_GetValue(prop);
-	if(paramValue_t) {
-		type_t = rbusValue_GetType(paramValue_t);
-	} else {
-		MqttCMError("Invalid input to set\n");
-		return RBUS_ERROR_INVALID_INPUT;
-	}
-
-	if(strncmp(paramName, MQTT_CLIENTID_PARAM, maxParamLen) == 0)
-	{
-		if(type_t == RBUS_STRING) {
-			char* data = rbusValue_ToString(paramValue_t, NULL, 0);
-			if(data) {
-				MqttCMInfo("Call datamodel function  with data %s\n", data);
-
-				if(clientId) {
-					free(clientId);
-					clientId = NULL;
-				}
-				clientId = strdup(data);
-				free(data);
-				MqttCMInfo("clientId after processing %s\n", clientId);
-				retPsmSet = rbus_StoreValueIntoDB( MQTT_CLIENTID_PARAM, clientId);
-				if (retPsmSet != RBUS_ERROR_SUCCESS)
-				{
-					MqttCMError("psm_set failed ret %d for parameter %s and value %s\n", retPsmSet, paramName, clientId);
-					return retPsmSet;
-				}
-				else
-				{
-					MqttCMInfo("psm_set success ret %d for parameter %s and value %s\n", retPsmSet, paramName, clientId);
 				}
 				validateForMqttInit();
 			}
@@ -1667,60 +1637,6 @@ rbusError_t webcfgMqttBrokerGetHandler(rbusHandle_t handle, rbusProperty_t prope
     return RBUS_ERROR_SUCCESS;
 }
 
-rbusError_t webcfgMqttClientIdGetHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
-{
-
-    (void) handle;
-    (void) opts;
-    char const* propertyName;
-    rbusError_t retPsmGet = RBUS_ERROR_BUS_ERROR;
-
-    propertyName = rbusProperty_GetName(property);
-    if(propertyName) {
-        MqttCMInfo("Property Name is %s \n", propertyName);
-    } else {
-        MqttCMError("Unable to handle get request for property \n");
-        return RBUS_ERROR_INVALID_INPUT;
-	}
-   if(strncmp(propertyName, MQTT_CLIENTID_PARAM, maxParamLen) == 0)
-   {
-
-	rbusValue_t value;
-        rbusValue_Init(&value);
-
-        if(clientId){
-            rbusValue_SetString(value, clientId);
-	}
-        else{
-		retPsmGet = rbus_GetValueFromDB( MQTT_CLIENTID_PARAM, &clientId );
-		if (retPsmGet != RBUS_ERROR_SUCCESS){
-			MqttCMError("psm_get failed ret %d for parameter %s and value %s\n", retPsmGet, propertyName, clientId);
-			if(value)
-			{
-				rbusValue_Release(value);
-			}
-			return retPsmGet;
-		}
-		else{
-			MqttCMInfo("psm_get success ret %d for parameter %s and value %s\n", retPsmGet, propertyName, clientId);
-			if(clientId)
-			{
-				rbusValue_SetString(value, clientId);
-			}
-			else
-			{
-				MqttCMError("clientId is empty\n");
-				rbusValue_SetString(value, "");
-			}
-		}
-	}
-        rbusProperty_SetValue(property, value);
-        rbusValue_Release(value);
-
-    }
-    return RBUS_ERROR_SUCCESS;
-}
-
 rbusError_t webcfgMqttConnModeGetHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
 {
 
@@ -1970,7 +1886,6 @@ int regMqttDataModel()
 
 		{MQTT_LOCATIONID_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {webcfgMqttLocationIdGetHandler, webcfgMqttLocationIdSetHandler, NULL, NULL, NULL, NULL}},
 		{MQTT_BROKER_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {webcfgMqttBrokerGetHandler, webcfgMqttBrokerSetHandler, NULL, NULL, NULL, NULL}},
-		{MQTT_CLIENTID_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {webcfgMqttClientIdGetHandler, webcfgMqttClientIdSetHandler, NULL, NULL, NULL, NULL}},
 		{MQTT_PORT_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {webcfgMqttPortGetHandler, webcfgMqttPortSetHandler, NULL, NULL, NULL, NULL}},
 		{MQTT_CONNECTMODE_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {webcfgMqttConnModeGetHandler, webcfgMqttConnModeSetHandler, NULL, NULL, NULL, NULL}},
 		{MQTT_CONNECT_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {NULL, webcfgMqttConnectSetHandler, NULL, NULL, NULL, NULL}},
