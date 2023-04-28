@@ -872,17 +872,10 @@ void publish_notify_mqtt(char *pub_topic, void *payload, ssize_t len)
 	uuid_t uuid;
 	uuid_generate_time(uuid);
 
-	struct timespec ts;
-	clock_gettime(CLOCK_REALTIME, &ts);
-
-	
-	uint64_t timestamp = (ts.tv_sec * 10000000ULL) + (ts.tv_nsec/100ULL) + 0x01b21dd213814000ULL;
-	uuid_t uuid2;
-	memcpy(uuid2, uuid, sizeof(uuid_t));
-	memcpy(uuid2+6, &timestamp, sizeof(uint64_t));
-
 	char uuid_str[37];
-	uuid_unparse(uuid2, uuid_str);
+	uuid_unparse(uuid, uuid_str);
+
+	MqttCMInfo("uuidv1 generated is %s\n", uuid_str);
 
 	int ret = mosquitto_property_add_string_pair(&props, MQTT_PROP_USER_PROPERTY, "UUIDv1", uuid_str);
 
