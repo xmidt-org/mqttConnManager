@@ -1024,7 +1024,7 @@ void fetchMqttParamsFromDB()
 {
 	char tmpLocationId[256]={'\0'};
 	char tmpBroker[256]={'\0'};
-	char tmpClientId[64]={'\0'};
+	//char tmpClientId[64]={'\0'};
 	char tmpPort[32]={'\0'};
 
 	Get_Mqtt_LocationId(tmpLocationId);
@@ -1039,7 +1039,7 @@ void fetchMqttParamsFromDB()
 		broker = strdup(tmpBroker);
 	}
 
-	if( get_clientId() != NULL && strlen(get_clientId()) !=0 )
+	/*if( get_clientId() != NULL && strlen(get_clientId()) !=0 )
 	{
 
               strncpy(tmpClientId, get_clientId(), sizeof(tmpClientId)-1);
@@ -1048,7 +1048,7 @@ void fetchMqttParamsFromDB()
 	      {
 		   clientId = strdup(tmpClientId);
 	      }
-	}
+	}*/
 
 	Get_Mqtt_Port(tmpPort);
 	if(tmpPort[0] != '\0')
