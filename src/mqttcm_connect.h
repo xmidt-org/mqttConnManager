@@ -38,14 +38,9 @@
 #include <rbus/rbus_property.h>
 #include <rbus/rbus_value.h>
 #include <cimplog.h>
+#include <uuid/uuid.h>
 
-#ifdef BUILD_YOCTO
-#define DEVICE_PROPS_FILE       "/etc/device.properties"
-#else
-#define DEVICE_PROPS_FILE       "/tmp/device.properties"
-#endif
-
-#define pComponentName "mqttCM"
+#define MQTT_COMPONENT_NAME  "mqttCM"
 
 #define MQTT_CONFIG_FILE     "/tmp/.mqttconfig"
 #define MOSQ_TLS_VERSION     "tlsv1.2"
@@ -53,18 +48,14 @@
 #define KEEPALIVE            60
 #define MQTT_PORT            443
 #define MAX_MQTT_LEN         128
-#define SINGLE_CONN_ELEMENTS 12
-#define MAX_BUF_SIZE 255
-#define maxParamLen 128
+#define SINGLE_CONN_ELEMENTS 8
+#define MAX_BUF_SIZE         255
+#define maxParamLen          128
 
-#define MQTT_SUBSCRIBE_TOPIC_PREFIX "x/to/"
-#define MQTT_PUBLISH_GET_TOPIC_PREFIX "x/fr/get/chi/"
-#define MQTT_PUBLISH_NOTIFY_TOPIC_PREFIX "x/fr/poke/chi/"
-
-#define MQTT_LOCATIONID_PARAM  "Device.X_RDK_MQTT.LocationID"
-#define MQTT_BROKER_PARAM      "Device.X_RDK_MQTT.BrokerURL"
-#define MQTT_CLIENTID_PARAM    "Device.X_RDK_MQTT.ClientID"
-#define MQTT_PORT_PARAM        "Device.X_RDK_MQTT.Port"
+#define MQTT_LOCATIONID_PARAM     "Device.X_RDK_MQTT.LocationID"
+#define MQTT_BROKER_PARAM         "Device.X_RDK_MQTT.BrokerURL"
+#define MQTT_CLIENTID_PARAM       "Device.X_RDK_MQTT.ClientID"
+#define MQTT_PORT_PARAM           "Device.X_RDK_MQTT.Port"
 
 #define MQTT_CONNECTMODE_PARAM    "Device.X_RDK_MQTT.ConnectionMode"
 #define MQTT_CONNECT_PARAM        "Device.X_RDK_MQTT.Connect"
@@ -72,16 +63,21 @@
 #define MQTT_PUBLISHGET_PARAM     "Device.X_RDK_MQTT.Webconfig.PublishGET"
 #define MQTT_PUBLISHNOTIF_PARAM   "Device.X_RDK_MQTT.WebConfig.PublishNotification"
 
-#define WEBCFG_MQTT_ONCONNECT_CALLBACK "Device.X_RDK_MQTT.Webconfig.OnConnectCallback"
-#define WEBCFG_MQTT_SUBSCRIBE_CALLBACK "Device.X_RDK_MQTT.Webconfig.OnSubcribeCallback"
-#define WEBCFG_MQTT_ONMESSAGE_CALLBACK "Device.X_RDK_MQTT.Webconfig.OnMessageCallback"
-#define WEBCFG_MQTT_ONPUBLISH_CALLBACK "Device.X_RDK_MQTT.Webconfig.OnPublishCallback"
-
 #define MAX_MQTT_RETRY 8
 #define MQTT_RETRY_ERR -1
 #define MQTT_RETRY_SHUTDOWN 1
 #define MQTT_DELAY_TAKEN 0
-#define UNUSED(x) (void )(x)
+#define MQTT_SUBSCRIBE_TOPIC_PREFIX "x/to/"
+#define MQTT_PUBLISH_GET_TOPIC_PREFIX "x/fr/get/chi/"
+#define MQTT_PUBLISH_NOTIFY_TOPIC_PREFIX "x/fr/poke/chi/"
+
+#define MQTTCM_FREE(__x__) if(__x__ != NULL) { free((void*)(__x__)); __x__ = NULL;} else {printf("Trying to free null pointer\n");}
+
+#ifdef BUILD_YOCTO
+#define DEVICE_PROPS_FILE       "/etc/device.properties"
+#else
+#define DEVICE_PROPS_FILE       "/tmp/device.properties"
+#endif
 
 typedef struct {
   struct timespec ts;
@@ -97,15 +93,11 @@ void on_message(struct mosquitto *mosq, void *obj, const struct mosquitto_messag
 void on_publish(struct mosquitto *mosq, void *obj, int mid);
 
 int writeToDBFile(char *db_file_path, char *data, size_t size);
-bool webcfg_mqtt_init();
 void get_from_file(char *key, char **val, char *filepath);
 void publish_notify_mqtt(char *pub_topic, void *payload, ssize_t len);
-char * createMqttPubHeader(char * payload, char * dest, ssize_t * payload_len);
 int get_global_mqtt_connected();
 void reset_global_mqttConnected();
 void set_global_mqttConnected();
-int createMqttHeader(char **header_list);
-int triggerBootupSync();
 void checkMqttParamSet();
 pthread_mutex_t *get_global_mqtt_retry_mut(void);
 pthread_cond_t *get_global_mqtt_retry_cond(void);
@@ -117,5 +109,11 @@ void execute_mqtt_script(char *name);
 int getHostIPFromInterface(char *interface, char **ip);
 void mqtt_subscribe();
 int mqttCMRbusInit();
+bool isRbusEnabled();
 void mqttCMRbus_Uninit();
-bool cm_mqtt_init();
+bool mqttCMConnectBroker();
+void registerRbusLogger();
+void get_interface(char **interface);
+pthread_cond_t *get_global_mqtt1_con(void);
+pthread_mutex_t *get_global_mqtt1_mut(void);
+rbusHandle_t get_global_rbus_handle(void);

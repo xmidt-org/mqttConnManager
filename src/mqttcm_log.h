@@ -17,15 +17,11 @@
 
 #define MQTTCM_RDK_LOGGING_MODULE                 "LOG.RDK.MQTTCM"
 
-#define MqttCMLog(...)       __cimplog_rdk_generic(MQTTCM_RDK_LOGGING_MODULE, MQTTCM_LOGGING_MODULE, LEVEL_INFO, __VA_ARGS__)
-
 #define MqttCMError(...)        __cimplog_rdk_generic(MQTTCM_RDK_LOGGING_MODULE, MQTTCM_LOGGING_MODULE, LEVEL_ERROR, __VA_ARGS__)
 #define MqttCMInfo(...)         __cimplog_rdk_generic(MQTTCM_RDK_LOGGING_MODULE, MQTTCM_LOGGING_MODULE, LEVEL_INFO, __VA_ARGS__)
 #define MqttCMDebug(...)        __cimplog_rdk_generic(MQTTCM_RDK_LOGGING_MODULE, MQTTCM_LOGGING_MODULE, LEVEL_DEBUG, __VA_ARGS__)
 
 #else
-
-#define MqttCMConfigLog(...)       printf(__VA_ARGS__)
 
 #define MqttCMError(...)        printf(__VA_ARGS__)
 #define MqttCMInfo(...)         printf(__VA_ARGS__)
