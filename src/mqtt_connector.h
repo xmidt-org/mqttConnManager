@@ -47,7 +47,7 @@
 
 #define pComponentName "mqttCM"
 
-#define MQTT_CONFIG_FILE     "/tmp/.mqttconfig"
+#define MQTT_CONFIG_FILE     "/home/suvidh/Documents/Code/.mqttconfig"
 #define MOSQ_TLS_VERSION     "tlsv1.2"
 #define OPENSYNC_CERT        "/etc/mqttcm/mqtt_cert_init.sh"
 #define KEEPALIVE            60
