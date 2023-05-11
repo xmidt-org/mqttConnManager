@@ -9,17 +9,15 @@
 #include <cimplog.h>
 #endif
 
-#define MQTTCM_LOGGING_MODULE                     "MQTTCM"
+#define LOGGING_MODULE                     "MQTTCM"
 /**
  * @brief Enables or disables debug logs.
  */
 #if defined(BUILD_YOCTO) && ! defined(DEVICE_EXTENDER)
 
-#define MQTTCM_RDK_LOGGING_MODULE                 "LOG.RDK.MQTTCM"
-
-#define MqttCMError(...)        __cimplog_rdk_generic(MQTTCM_RDK_LOGGING_MODULE, MQTTCM_LOGGING_MODULE, LEVEL_ERROR, __VA_ARGS__)
-#define MqttCMInfo(...)         __cimplog_rdk_generic(MQTTCM_RDK_LOGGING_MODULE, MQTTCM_LOGGING_MODULE, LEVEL_INFO, __VA_ARGS__)
-#define MqttCMDebug(...)        __cimplog_rdk_generic(MQTTCM_RDK_LOGGING_MODULE, MQTTCM_LOGGING_MODULE, LEVEL_DEBUG, __VA_ARGS__)
+#define MqttCMError(...)                   cimplog_error(LOGGING_MODULE, __VA_ARGS__)
+#define MqttCMInfo(...)                    cimplog_info(LOGGING_MODULE, __VA_ARGS__)
+#define MqttCMDebug(...)                   cimplog_debug(LOGGING_MODULE, __VA_ARGS__)
 
 #else
 
