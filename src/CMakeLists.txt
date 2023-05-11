@@ -14,8 +14,8 @@
 
 set(PROJ_WEBCFG mqttConnManager)
 
-set(HEADERS mqtt_connector.h mqtt_log.h)
-set(SOURCES mqtt_connector.c)
+set(HEADERS mqttcm_connect.h mqttcm_log.h mqttcm_privilege.h mqttcm_generic.h mqttcm_webcfg.h)
+set(SOURCES main.c mqttcm_connect.c mqttcm_privilege.c mqttcm_generic.c mqttcm_webcfg.c)
 
 add_executable(mqttConnManager ${SOURCES} ${HEADERS})
 set_property(TARGET mqttConnManager PROPERTY C_STANDARD 99)

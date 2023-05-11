@@ -17,133 +17,50 @@
  * limitations under the License.
  */
 
-#include <unistd.h>
-#include <string.h>
-#include <stdlib.h>
-#include <uuid/uuid.h>
-#include <time.h>
-#ifdef INCLUDE_BREAKPAD
-#include "breakpad_wrapper.h"
-#endif
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <arpa/nameser.h>
-#include <resolv.h>
-#include <ctype.h>
-#include <pthread.h>
-#include <errno.h>
-#include <sys/socket.h>
-#include <sys/ioctl.h>
-#include <net/if.h>
-#include <arpa/inet.h>
-#include <mosquitto.h>
-#include <mqtt_protocol.h>
-#include <rbus/rbus.h>
-#include <rbus/rbus_object.h>
-#include <rbus/rbus_property.h>
-#include <rbus/rbus_value.h>
-#include "mqtt_connector.h"
-#include "mqtt_log.h"
-
-#if 1
-int __attribute__((weak)) Get_Mqtt_LocationId( char *pString);
-int __attribute__((weak)) Get_Mqtt_Broker( char *pString);
-int __attribute__((weak)) Get_Mqtt_Port( char *pString);
-//int __attribute__((weak)) Get_Mqtt_ClientId( char *pString);
-int __attribute__((weak)) rbus_GetValueFromDB( char* paramName, char** paramValue);
-int __attribute__((weak)) rbus_StoreValueIntoDB(char *paramName, char *value);
-char* __attribute__((weak)) get_clientId();
-#endif
+#include "mqttcm_connect.h"
+#include "mqttcm_log.h"
+#include "mqttcm_generic.h"
+#include "mqttcm_webcfg.h"
 
 static int g_mqttConnected = 0;
-//static int systemStatus = 0;
-struct mosquitto *mosq = NULL;
-//static char g_deviceId[64]={'\0'};
-//global flag to do bootupsync only once after connect and subscribe callback.
-
-pthread_mutex_t mqtt1_mut= PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t  mqtt1_con= PTHREAD_COND_INITIALIZER;
-
-static int bootupsync = 0;
 static int connectFlag = 0;
+struct mosquitto *mosq = NULL;
+static bool isRbus = false ;
+static char* connectMqtt = NULL;
+static int bootupsync = 0;
 static int subscribeFlag = 0;
 static char* locationId = NULL;
 static char* clientId = NULL;
 static char* Port =NULL;
 static char* broker = NULL;
 static char* connMode = NULL;
-static char* connectMqtt = NULL;
 static char* subscribe = NULL;
 static char* publishget = NULL;
 static char *publishnotify = NULL;
 static int mqinit = 0;
 static rbusHandle_t rbus_handle;
-
-int webcfg_onconnect = 0;
-int webcfg_subscribe = 0;
-int webcfg_onmessage = 0;
-int webcfg_onpublish = 0;
-
-void get_webCfg_interface(char **interface);
-/*
-static char g_systemReadyTime[64]={'\0'};
-static char g_FirmwareVersion[64]={'\0'};
-static char g_bootTime[64]={'\0'};
-static char g_productClass[64]={'\0'};
-static char g_ModelName[64]={'\0'};
-static char g_PartnerID[64]={'\0'};
-static char g_AccountID[64]={'\0'};*/
-static char g_ClientID[64] = { 0 };
-
 static char* mqttdata = NULL;
 
 pthread_mutex_t mqtt_retry_mut=PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t mqtt_retry_con=PTHREAD_COND_INITIALIZER;
 pthread_mutex_t mqtt_mut=PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t mqtt_con=PTHREAD_COND_INITIALIZER;
+pthread_mutex_t mqtt1_mut= PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t  mqtt1_con= PTHREAD_COND_INITIALIZER;
 
-const char *rdk_logger_module_fetch(void)
+static int mqtt_retry(mqtt_timer_t *timer);
+void init_mqtt_timer (mqtt_timer_t *timer, int max_count);
+
+pthread_cond_t *get_global_mqtt1_con(void)
 {
-    return "LOG.RDK.MQTTCM";
+    return &mqtt1_con;
 }
 
-int mqttCMRbusInit()
+pthread_mutex_t *get_global_mqtt1_mut(void)
 {
-	int ret = RBUS_ERROR_SUCCESS;
-
-	MqttCMInfo("rbus_open for component %s\n", pComponentName);
-	ret = rbus_open(&rbus_handle, pComponentName);
-	if(ret != RBUS_ERROR_SUCCESS)
-	{
-		MqttCMError("mqttCMRbusInit failed with error code %d\n", ret);
-		return 0;
-	}
-	MqttCMInfo("mqttCMRbusInit is success. ret is %d\n", ret);
-	return 1;
+    return &mqtt1_mut;
 }
 
-void mqttCMRbus_Uninit()
-{
-    rbus_close(rbus_handle);
-}
-
-#if 0
-int rbus_GetValueFromDB( char* paramName, char** paramValue)
-{
-	MqttCMInfo("Inside rbus_GetValueFromDB weak fn\n");
-	UNUSED(paramName);
-	UNUSED(paramValue);
-	return 0;
-}
-
-int rbus_StoreValueIntoDB(char *paramName, char *value)
-{
-	MqttCMInfo("Inside rbus_StoreValueIntoDB weak fn\n");
-	UNUSED(paramName);
-	UNUSED(value);
-	return 0;
-}
-#endif
 rbusHandle_t get_global_rbus_handle(void)
 {
      return rbus_handle;
@@ -198,198 +115,47 @@ pthread_mutex_t *get_global_mqtt_mut(void)
 {
     return &mqtt_mut;
 }
-#if 0
-int Get_Mqtt_LocationId( char *pString)
+
+bool isRbusEnabled() 
 {
-    MqttCMDebug("Inside Get_Mqtt_LocationId weak function.\n");
-    UNUSED(pString);
-    return 0;
-}
-
-char * get_clientId()
-{
-    MqttCMDebug("Inside get_clientId weak function.\n");
-    return "";
-}
-int Get_Mqtt_Broker( char *pString)
-{
-    MqttCMDebug("Inside Get_Mqtt_Broker weak function.\n");
-    UNUSED(pString);
-    return 0;
-}
-int Get_Mqtt_Port( char *pString)
-{
-    MqttCMDebug("Inside Get_Mqtt_Port weak function.\n");
-    UNUSED(pString);
-    return 0;
-}
-#endif
-void get_webCfg_interface(char **interface)
-{
-#if ! defined(DEVICE_EXTENDER)
-        FILE *fp = fopen(DEVICE_PROPS_FILE, "r");
-
-        if (NULL != fp)
-        {
-                char str[255] = {'\0'};
-                while (fgets(str, sizeof(str), fp) != NULL)
-                {
-                    char *value = NULL;
-
-                    if(NULL != (value = strstr(str, "WEBCONFIG_INTERFACE=")))
-                    {
-                        value = value + strlen("WEBCONFIG_INTERFACE=");
-                        value[strlen(value)-1] = '\0';
-                        *interface = strdup(value);
-                        break;
-                    }
-
-                }
-                fclose(fp);
-        }
-        else
-        {
-                MqttCMError("Failed to open device.properties file:%s\n", DEVICE_PROPS_FILE);
-        }
-
-        if (NULL == *interface)
-        {
-                MqttCMError("WebConfig interface is not present in device.properties\n");
-
-        }
-        else
-        {
-                MqttCMInfo("interface fetched is %s\n", *interface);
-        }
-#endif
-}
-
-void checkMqttParamSet()
-{
-	if( !validateForMqttInit() && connectFlag)
+	if(RBUS_ENABLED == rbus_checkStatus())
 	{
-		MqttCMInfo("Validation success for mqtt parameters, proceed to mqtt init\n");
+		isRbus = true;
 	}
 	else
 	{
-		pthread_mutex_lock(get_global_mqtt_mut());
-		pthread_cond_wait(get_global_mqtt_cond(), get_global_mqtt_mut());
-		pthread_mutex_unlock(get_global_mqtt_mut());
-		MqttCMInfo("Received mqtt signal proceed to mqtt init\n");
+		isRbus = false;
 	}
+	MqttCMInfo("MQTTCM RBUS mode active status = %s\n", isRbus ? "true":"false");
+	return isRbus;
 }
 
-void init_mqtt_timer (mqtt_timer_t *timer, int max_count)
+//Rbus registration with mqttCM
+int mqttCMRbusInit(char *pComponentName)
 {
-  timer->count = 1;
-  timer->max_count = max_count;
-  timer->delay = 3;  //7s,15s,31s....
-  clock_gettime (CLOCK_MONOTONIC, &timer->ts);
-}
+	int ret = RBUS_ERROR_SUCCESS;
 
-unsigned update_mqtt_delay (mqtt_timer_t *timer)
-{
-  if (timer->count < timer->max_count) {
-    timer->count += 1;
-    timer->delay = timer->delay + timer->delay + 1;
-    // 3,7,15,31 ..
-  }
-  return (unsigned) timer->delay;
-}
-
-unsigned mqtt_rand_secs (int random_num, unsigned max_secs)
-{
-  unsigned delay_secs = (unsigned) random_num & max_secs;
-  if (delay_secs < 3)
-    return delay_secs + 3;
-  else
-    return delay_secs;
-}
-
-unsigned mqtt_rand_nsecs (int random_num)
-{
-	/* random _num is in range 0..2147483648 */
-	unsigned n = (unsigned) random_num >> 1;
-	/* n is in range 0..1073741824 */
-	if (n < 1000000000)
-	  return n;
-	return n - 1000000000;
-}
-
-void mqtt_add_timespec (struct timespec *t1, struct timespec *t2)
-{
-	t2->tv_sec += t1->tv_sec;
-	t2->tv_nsec += t1->tv_nsec;
-	if (t2->tv_nsec >= 1000000000) {
-	  t2->tv_sec += 1;
-	  t2->tv_nsec -= 1000000000;
+	MqttCMInfo("rbus_open for component %s\n", pComponentName);
+	ret = rbus_open(&rbus_handle, pComponentName);
+	if(ret != RBUS_ERROR_SUCCESS)
+	{
+		MqttCMError("mqttCMRbusInit failed with error code %d\n", ret);
+		return 0;
 	}
+	MqttCMInfo("mqttCMRbusInit is success. ret is %d\n", ret);
+	return 1;
 }
 
-void mqtt_rand_expiration (int random_num1, int random_num2, mqtt_timer_t *timer, struct timespec *ts)
+void mqttCMRbus_Uninit()
 {
-	unsigned max_secs = update_mqtt_delay (timer); // 3,7,15,31
-	struct timespec ts_delay = {3, 0};
-
-	if (max_secs > 3) {
-	  ts_delay.tv_sec = mqtt_rand_secs (random_num1, max_secs);
-	  ts_delay.tv_nsec = mqtt_rand_nsecs (random_num2);
-	}
-    MqttCMInfo("Waiting max delay %u mqttRetryTime %ld secs %ld usecs\n",
-      max_secs, ts_delay.tv_sec, ts_delay.tv_nsec/1000);
-
-	/* Add delay to expire time */
-    mqtt_add_timespec (&ts_delay, ts);
-}
-
-/* mqtt_retry
- *
- * delays for the number of seconds specified in parameter timer
- * g_shutdown can break out of the delay.
- *
- * returns -1 pthread_cond_timedwait error
- *  1   shutdown
- *  0    delay taken
-*/
-static int mqtt_retry(mqtt_timer_t *timer)
-{
-  struct timespec ts;
-  int rtn;
-
-  pthread_condattr_t mqtt_retry_con_attr;
-
-  pthread_condattr_init (&mqtt_retry_con_attr);
-  pthread_condattr_setclock (&mqtt_retry_con_attr, CLOCK_MONOTONIC);
-  pthread_cond_init (&mqtt_retry_con, &mqtt_retry_con_attr);
-
-  clock_gettime(CLOCK_MONOTONIC, &ts);
-
-  mqtt_rand_expiration(random(), random(), timer, &ts);
-
-  pthread_mutex_lock(&mqtt_retry_mut);
-  // The condition variable will only be set if we shut down.
-  rtn = pthread_cond_timedwait(&mqtt_retry_con, &mqtt_retry_mut, &ts);
-  pthread_mutex_unlock(&mqtt_retry_mut);
-
-  pthread_condattr_destroy(&mqtt_retry_con_attr);
-
-  if (get_global_shutdown())
-    return MQTT_RETRY_SHUTDOWN;
-  if ((rtn != 0) && (rtn != ETIMEDOUT)) {
-    MqttCMError("pthread_cond_timedwait error (%d) in mqtt_retry.\n", rtn);
-    return MQTT_RETRY_ERR;
-  }
-
-  return MQTT_DELAY_TAKEN;
+    rbus_close(rbus_handle);
 }
 
 //Initialize mqtt library and connect to mqtt broker
-bool cm_mqtt_init()
+bool mqttCMConnectBroker()
 {
-	char *client_id , *username = NULL;
-	char hostname[256] = { 0 };
+	char *username = NULL;
 	int rc;
-	char PORT[32] = { 0 };
 	int port = 0;
 	mqtt_timer_t mqtt_timer;
 	int tls_count = 0;
@@ -397,41 +163,21 @@ bool cm_mqtt_init()
 	char *bind_interface = NULL;
 	char *hostip = NULL;
 
-	if( get_clientId() != NULL && strlen(get_clientId()) !=0 )
-	{
-	      strncpy(g_ClientID, get_clientId(), sizeof(g_ClientID)-1);
-	      MqttCMInfo("g_ClientID fetched from get_clientId is %s\n", g_ClientID);
-	}
-
 	checkMqttParamSet();
+	
 	res_init();
+	
 	MqttCMInfo("Initializing MQTT library\n");
-
 	mosquitto_lib_init();
 
 	int clean_session = true;
 
-	client_id = strdup(g_ClientID);
-	MqttCMInfo("client_id is %s\n", client_id);
-
-	if(client_id !=NULL)
+	if (clientId !=NULL)
 	{
-		Get_Mqtt_Broker(hostname);
-		if(hostname != NULL && strlen(hostname)>0)
+		MqttCMInfo("Port fetched from TR181 is %s\n", Port);
+		if(Port !=NULL && strlen(Port) > 0)
 		{
-			MqttCMInfo("The hostname is %s\n", hostname);
-		}
-		else
-		{
-			MqttCMError("Invalid config, hostname is NULL\n");
-			return MOSQ_ERR_INVAL;
-		}
-
-		Get_Mqtt_Port(PORT);
-		MqttCMInfo("PORT fetched from TR181 is %s\n", PORT);
-		if(strlen(PORT) > 0)
-		{
-			port = atoi(PORT);
+			port = atoi(Port);
 		}
 		else
 		{
@@ -441,18 +187,18 @@ bool cm_mqtt_init()
 
 		while(1)
 		{
-			username = client_id;
-			MqttCMInfo("client_id is %s username is %s\n", client_id, username);
+			username = clientId;
+			MqttCMInfo("clientId is %s username is %s\n", clientId, username);
 
 			execute_mqtt_script(OPENSYNC_CERT);
 
-			if(client_id !=NULL)
+			if(clientId !=NULL)
 			{
-				mosq = mosquitto_new(client_id, clean_session, NULL);
+				mosq = mosquitto_new(clientId, clean_session, NULL);
 			}
 			else
 			{
-				MqttCMInfo("client_id is NULL, init with clean_session true\n");
+				MqttCMInfo("clientId is NULL, init with clean_session true\n");
 				mosq = mosquitto_new(NULL, true, NULL);
 			}
 			if(!mosq)
@@ -540,7 +286,7 @@ bool cm_mqtt_init()
 
 					init_mqtt_timer(&mqtt_timer, MAX_MQTT_RETRY);
 
-					get_webCfg_interface(&bind_interface);
+					get_interface(&bind_interface);
 					if(bind_interface != NULL)
 					{
 						MqttCMInfo("Interface fetched for mqtt connect bind is %s\n", bind_interface);
@@ -556,7 +302,7 @@ bool cm_mqtt_init()
 					}
 					while(1)
 					{
-						rc = mosquitto_connect_bind(mosq, hostname, port, KEEPALIVE, hostip);
+						rc = mosquitto_connect_bind(mosq, broker, port, KEEPALIVE, hostip);
 
 						MqttCMInfo("mosquitto_connect_bind rc %d\n", rc);
 						if(rc != MOSQ_ERR_SUCCESS)
@@ -613,18 +359,60 @@ bool cm_mqtt_init()
 	}
 	else
 	{
-		MqttCMError("Failed to get client_id\n");
+		MqttCMError("Failed to get clientId\n");
 		return 1;
 
 	}
 	return rc;
 }
 
+void checkMqttParamSet()
+{
+	if( !validateForMqttInit())
+	{
+		MqttCMInfo("Validation success for mqtt parameters, proceed to mqtt init\n");
+	}
+	else
+	{
+		pthread_mutex_lock(get_global_mqtt_mut());
+		pthread_cond_wait(get_global_mqtt_cond(), get_global_mqtt_mut());
+		pthread_mutex_unlock(get_global_mqtt_mut());
+		MqttCMInfo("Received mqtt signal proceed to mqtt init\n");
+	}
+}
+
+int validateForMqttInit()
+{
+	if(mqinit == 0)
+	{
+		MqttCMInfo("validateForMqttInit. locationId %s clientId %s broker %s \n", locationId, clientId, broker);
+		if (locationId != NULL && clientId != NULL && broker != NULL)
+		{
+			if ((strlen(locationId) != 0) && (strlen(clientId) != 0) && (strlen(broker) !=0))
+			{
+				MqttCMInfo("All 3 mandatory params locationId, NodeId and broker are set, proceed to mqtt init\n");
+				mqinit = 1;
+				pthread_mutex_lock (&mqtt_mut);
+				pthread_cond_signal(&mqtt_con);
+				pthread_mutex_unlock (&mqtt_mut);
+				return 0;
+			}
+			else
+			{
+				MqttCMInfo("All 3 mandatory params locationId, NodeId and broker are not set, waiting..\n");
+			}
+		}
+		else
+		{
+			MqttCMInfo("All 3 mandatory params locationId, NodeId and broker are not set, waiting..\n");
+		}
+	}
+	return 1;
+}
+
 // callback called when the client receives a CONNACK message from the broker
 void on_connect(struct mosquitto *mosq, void *obj, int reason_code)
 {
-       // int rc;
-	//char topic[256] = { 0 };
         MqttCMInfo("on_connect: reason_code %d %s\n", reason_code, mosquitto_connack_string(reason_code));
         if(reason_code != 0)
 	{
@@ -634,51 +422,11 @@ void on_connect(struct mosquitto *mosq, void *obj, int reason_code)
 		return;
         }
 
-	//Trigger on_connect callback event.
-	if(webcfg_onconnect)
-	{
-	    rbusEvent_t event = {0};
-	    rbusObject_t data;
-	    rbusValue_t value;
-
-	    MqttCMInfo("publishing Event\n");
-
-	    rbusValue_Init(&value);
-	    rbusValue_SetString(value, "success");
-
-	    rbusObject_Init(&data, NULL);
-	    rbusObject_SetValue(data, "value", value);
-
-	    event.name = WEBCFG_MQTT_ONCONNECT_CALLBACK;
-	    event.data = data;
-	    event.type = RBUS_EVENT_GENERAL;
-
-	    rbusError_t rc = rbusEvent_Publish(rbus_handle, &event);
-
-	    rbusValue_Release(value);
-	    rbusObject_Release(data);
-
-	    if(rc != RBUS_ERROR_SUCCESS)
-		MqttCMError("provider: rbusEvent_Publish onconnect event failed: %d\n", rc);
-	}
+	//send on_connect callback event to webconfig via rbus.
+	sendRusEventWebcfgOnConnect();
 
 }
 
-// callback called when the client gets DISCONNECT command from the broker
-void on_disconnect(struct mosquitto *mosq, void *obj, int reason_code)
-{
-        MqttCMInfo("on_disconnect: reason_code %d %s\n", reason_code, mosquitto_reason_string(reason_code));
-        if(reason_code != 0)
-	{
-		MqttCMInfo("on_disconnect received error\n");
-                //reconnect
-               //mosquitto_disconnect(mosq);
-		//Resetting to trigger sync on wan_restore
-		subscribeFlag = 0;
-		bootupsync = 0;
-		return;
-        }
-}
 // callback called when the broker sends a SUBACK in response to a SUBSCRIBE.
 void on_subscribe(struct mosquitto *mosq, void *obj, int mid, int qos_count, const int *granted_qos)
 {
@@ -688,40 +436,16 @@ void on_subscribe(struct mosquitto *mosq, void *obj, int mid, int qos_count, con
 	MqttCMInfo("on_subscribe callback: qos_count %d\n", qos_count);
         //SUBSCRIBE can contain many topics at once
 
-	if(webcfg_subscribe)
-	{
-	    rbusEvent_t event = {0};
-	    rbusObject_t data;
-	    rbusValue_t value;
-
-	    MqttCMInfo("publishing Event\n");
-
-	    rbusValue_Init(&value);
-	    rbusValue_SetString(value, "success");
-
-	    rbusObject_Init(&data, NULL);
-	    rbusObject_SetValue(data, "value", value);
-
-	    event.name = WEBCFG_MQTT_SUBSCRIBE_CALLBACK;
-	    event.data = data;
-	    event.type = RBUS_EVENT_GENERAL;
-
-	    rbusError_t rc = rbusEvent_Publish(rbus_handle, &event);
-
-	    rbusValue_Release(value);
-	    rbusObject_Release(data);
-
-	    if(rc != RBUS_ERROR_SUCCESS)
-		MqttCMError("provider: rbusEvent_Publish Subscribe event failed: %d\n", rc);
-	}
+	//send on_subscribe callback event to webconfig via rbus.
+	sendRusEventWebcfgOnSubscribe();
 
         for(i=0; i<qos_count; i++)
 	{
                 MqttCMInfo("on_subscribe: %d:granted qos = %d\n", i, granted_qos[i]);
-                if(granted_qos[i] <= 2)
+		if(granted_qos[i] <= 2)
 		{
-                        have_subscription = true;
-                }
+			have_subscription = true;
+		}
         }
         if(have_subscription == false)
 	{
@@ -741,54 +465,43 @@ void on_message(struct mosquitto *mosq, void *obj, const struct mosquitto_messag
 
 			int dataSize = msg->payloadlen;
 			char * data = malloc(sizeof(char) * dataSize+1);
-			memset(data, 0, sizeof(char) * dataSize+1);
-			data = memcpy(data, (char *) msg->payload, dataSize+1);
-			data[dataSize] = '\0';
-
-			MqttCMInfo("Received dataSize is %d\n", dataSize);
-			MqttCMDebug("write to file /tmp/subscribe_message.bin\n");
-			writeToDBFile("/tmp/subscribe_message.bin",(char *)data,dataSize);
-			MqttCMInfo("write to file done\n");
-
-			if(mqttdata)
+			if(data !=NULL)
 			{
-				free(mqttdata);
-				mqttdata= NULL;
+				memset(data, 0, sizeof(char) * dataSize+1);
+				data = memcpy(data, (char *) msg->payload, dataSize+1);
+				data[dataSize] = '\0';
+
+				MqttCMInfo("Received dataSize is %d\n", dataSize);
+				MqttCMDebug("write to file /tmp/subscribe_message.bin\n");
+				writeToDBFile("/tmp/subscribe_message.bin",(char *)data,dataSize);
+				MqttCMInfo("write to file done\n");
+			
+				if(mqttdata)
+				{
+					free(mqttdata);
+					mqttdata= NULL;
+				}
+
+				mqttdata = malloc(sizeof(char) * dataSize);
+				if(mqttdata !=NULL)
+				{
+					memset(mqttdata, 0, sizeof(char) * dataSize);
+					mqttdata = memcpy(mqttdata, data, dataSize );
+					free(data);
+					data = NULL;
+
+					//send on_message callback event to webconfig via rbus.
+					sendRusEventWebcfgOnMessage(mqttdata, dataSize);
+				}
+				else
+				{
+					MqttCMError("mqttdata malloc failed\n");
+				}
 			}
-
-			mqttdata = malloc(sizeof(char) * dataSize);
-			memset(mqttdata, 0, sizeof(char) * dataSize);
-			mqttdata = memcpy(mqttdata, data, dataSize );
-			free(data);
-			data = NULL;
-
-			if(webcfg_onmessage)
+			else
 			{
-			    rbusEvent_t event = {0};
-			    rbusObject_t dataIn;
-			    rbusValue_t value;
-
-			    MqttCMInfo("publishing onmessafe event1\n");
-
-			    rbusValue_Init(&value);
-			    rbusValue_SetBytes(value, (uint8_t*)mqttdata, dataSize);
-
-			    rbusObject_Init(&dataIn, NULL);
-			    rbusObject_SetValue(dataIn, "value", value);
-
-			    event.name = WEBCFG_MQTT_ONMESSAGE_CALLBACK;
-			    event.data = dataIn;
-			    event.type = RBUS_EVENT_GENERAL;
-
-			    rbusError_t rc = rbusEvent_Publish(rbus_handle, &event);
-
-			    rbusValue_Release(value);
-			    rbusObject_Release(dataIn);
-
-			    if(rc != RBUS_ERROR_SUCCESS)
-				MqttCMError("provider: rbusEvent_Publish onmessage event failed: %d\n", rc);
+				MqttCMError("on_message data malloc failed\n");
 			}
-
 		}
 		else
 		{
@@ -805,35 +518,160 @@ void on_publish(struct mosquitto *mosq, void *obj, int mid)
 {
 	MqttCMInfo("Message with mid %d has been published.\n", mid);
 
-	if(webcfg_onpublish)
+	//send on_publish callback event to webconfig via rbus.
+	sendRusEventWebcfgOnPublish(mid);
+}
+
+// callback called when the client gets DISCONNECT command from the broker
+void on_disconnect(struct mosquitto *mosq, void *obj, int reason_code)
+{
+        MqttCMInfo("on_disconnect: reason_code %d %s\n", reason_code, mosquitto_reason_string(reason_code));
+        if(reason_code != 0)
 	{
-	    char msg[256] = { 0 };
-	    rbusEvent_t event = {0};
-	    rbusObject_t data;
-	    rbusValue_t value;
+		MqttCMInfo("on_disconnect received error\n");
+                //reconnect
+               //mosquitto_disconnect(mosq);
+		//Resetting to trigger sync on wan_restore
+		subscribeFlag = 0;
+		bootupsync = 0;
+		return;
+        }
+}
+/* Enables rbus ERROR level logs in mqttcm. Modify RBUS_LOG_ERROR check if more debug logs are needed from rbus. */
+void rbus_log_handler(
+    rbusLogLevel level,
+    const char* file,
+    int line,
+    int threadId,
+    char* message)
+{
+    const char* slevel = "";
 
-	    snprintf(msg, MAX_MQTT_LEN, "Message with mid %d has been published.", mid);
+    if(level < RBUS_LOG_ERROR)
+        return;
 
-	    MqttCMInfo("publishing Event\n");
+    switch(level)
+    {
+	    case RBUS_LOG_DEBUG:    slevel = "DEBUG";   break;
+	    case RBUS_LOG_INFO:     slevel = "INFO";    break;
+	    case RBUS_LOG_WARN:     slevel = "WARN";    break;
+	    case RBUS_LOG_ERROR:    slevel = "ERROR";   break;
+	    case RBUS_LOG_FATAL:    slevel = "FATAL";   break;
+    }
+    MqttCMInfo("%5s %s:%d -- %s\n", slevel, file, line, message);
+}
 
-	    rbusValue_Init(&value);
-	    rbusValue_SetString(value, msg);
+void registerRbusLogger()
+{
+	rbus_registerLogHandler(rbus_log_handler);
+	MqttCMInfo("Registered rbus log handler\n");
+}
 
-	    rbusObject_Init(&data, NULL);
-	    rbusObject_SetValue(data, "value", value);
+void init_mqtt_timer (mqtt_timer_t *timer, int max_count)
+{
+	timer->count = 1;
+	timer->max_count = max_count;
+	timer->delay = 3;  //7s,15s,31s....
+	clock_gettime (CLOCK_MONOTONIC, &timer->ts);
+}
 
-	    event.name = WEBCFG_MQTT_ONPUBLISH_CALLBACK;
-	    event.data = data;
-	    event.type = RBUS_EVENT_GENERAL;
-
-	    rbusError_t rc = rbusEvent_Publish(rbus_handle, &event);
-
-	    rbusValue_Release(value);
-	    rbusObject_Release(data);
-
-	    if(rc != RBUS_ERROR_SUCCESS)
-		MqttCMError("provider: rbusEvent_Publish Subscribe event failed: %d\n", rc);
+unsigned update_mqtt_delay (mqtt_timer_t *timer)
+{
+	if (timer->count < timer->max_count)
+	{
+		timer->count += 1;
+		timer->delay = timer->delay + timer->delay + 1;
+		// 3,7,15,31 ..
 	}
+	return (unsigned) timer->delay;
+}
+
+unsigned mqtt_rand_secs (int random_num, unsigned max_secs)
+{
+	unsigned delay_secs = (unsigned) random_num & max_secs;
+	if (delay_secs < 3)
+		return delay_secs + 3;
+	else
+		return delay_secs;
+}
+
+unsigned mqtt_rand_nsecs (int random_num)
+{
+	/* random _num is in range 0..2147483648 */
+	unsigned n = (unsigned) random_num >> 1;
+	/* n is in range 0..1073741824 */
+	if (n < 1000000000)
+		return n;
+	return n - 1000000000;
+}
+
+void mqtt_add_timespec (struct timespec *t1, struct timespec *t2)
+{
+	t2->tv_sec += t1->tv_sec;
+	t2->tv_nsec += t1->tv_nsec;
+	if (t2->tv_nsec >= 1000000000)
+	{
+		t2->tv_sec += 1;
+		t2->tv_nsec -= 1000000000;
+	}
+}
+
+void mqtt_rand_expiration (int random_num1, int random_num2, mqtt_timer_t *timer, struct timespec *ts)
+{
+	unsigned max_secs = update_mqtt_delay (timer); // 3,7,15,31
+	struct timespec ts_delay = {3, 0};
+
+	if (max_secs > 3)
+	{
+		ts_delay.tv_sec = mqtt_rand_secs (random_num1, max_secs);
+		ts_delay.tv_nsec = mqtt_rand_nsecs (random_num2);
+	}
+	MqttCMInfo("Waiting max delay %u mqttRetryTime %ld secs %ld usecs\n",
+	max_secs, ts_delay.tv_sec, ts_delay.tv_nsec/1000);
+
+	/* Add delay to expire time */
+	mqtt_add_timespec (&ts_delay, ts);
+}
+
+/* mqtt_retry
+ *
+ * delays for the number of seconds specified in parameter timer
+ * g_shutdown can break out of the delay.
+ *
+ * returns -1 pthread_cond_timedwait error
+ *  1   shutdown
+ *  0    delay taken
+*/
+static int mqtt_retry(mqtt_timer_t *timer)
+{
+	struct timespec ts;
+	int rtn;
+
+	pthread_condattr_t mqtt_retry_con_attr;
+
+	pthread_condattr_init (&mqtt_retry_con_attr);
+	pthread_condattr_setclock (&mqtt_retry_con_attr, CLOCK_MONOTONIC);
+	pthread_cond_init (&mqtt_retry_con, &mqtt_retry_con_attr);
+
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+
+	mqtt_rand_expiration(random(), random(), timer, &ts);
+
+	pthread_mutex_lock(&mqtt_retry_mut);
+	//The condition variable will only be set if we shut down.
+	rtn = pthread_cond_timedwait(&mqtt_retry_con, &mqtt_retry_mut, &ts);
+	pthread_mutex_unlock(&mqtt_retry_mut);
+
+	pthread_condattr_destroy(&mqtt_retry_con_attr);
+
+	if (get_global_shutdown())
+	return MQTT_RETRY_SHUTDOWN;
+	if ((rtn != 0) && (rtn != ETIMEDOUT))
+	{
+		MqttCMError("pthread_cond_timedwait error (%d) in mqtt_retry.\n", rtn);
+		return MQTT_RETRY_ERR;
+	}
+	return MQTT_DELAY_TAKEN;
 }
 
 /* This function pretends to read some data from a sensor and publish it.*/
@@ -848,17 +686,24 @@ void publish_notify_mqtt(char *pub_topic, void *payload, ssize_t len)
 
 		Get_Mqtt_LocationId(locationID);
                 MqttCMInfo("locationID fetched from tr181 is %s\n", locationID);
-                snprintf(publish_topic, MAX_MQTT_LEN, "%s%s/%s", MQTT_PUBLISH_NOTIFY_TOPIC_PREFIX, g_ClientID,locationID);
+                if(clientId !=NULL)
+                {
+		        snprintf(publish_topic, MAX_MQTT_LEN, "%s%s/%s", MQTT_PUBLISH_NOTIFY_TOPIC_PREFIX, clientId,locationID);
 
-		if(strlen(publish_topic)>0)
-		{
-			MqttCMInfo("publish_topic fetched from tr181 is %s\n", publish_topic);
-			pub_topic = strdup(publish_topic);
-			MqttCMInfo("pub_topic from file is %s\n", pub_topic);
+			if(strlen(publish_topic)>0)
+			{
+				MqttCMInfo("publish_topic fetched from tr181 is %s\n", publish_topic);
+				pub_topic = strdup(publish_topic);
+				MqttCMInfo("pub_topic from file is %s\n", pub_topic);
+			}
+			else
+			{
+				MqttCMError("Failed to fetch publish topic\n");
+			}
 		}
 		else
 		{
-			MqttCMError("Failed to fetch publish topic\n");
+			MqttCMError("Failed to publish as clientId is NULL\n");
 		}
 	}
 	else
@@ -885,7 +730,6 @@ void publish_notify_mqtt(char *pub_topic, void *payload, ssize_t len)
 	}
 
         //rc = mosquitto_publish(mosq, NULL, pub_topic, len, payload, 2, false);
-
 	rc = mosquitto_publish_v5(mosq, NULL, pub_topic, len, payload, 2, false, props);
 	MqttCMInfo("Publish rc %d\n", rc);
         if(rc != MOSQ_ERR_SUCCESS)
@@ -925,41 +769,13 @@ void get_from_file(char *key, char **val, char *filepath)
 
         if (NULL == *val)
         {
-                MqttCMError("WebConfig val is not present in file\n");
+                MqttCMError("val is not present in file\n");
 
         }
         else
         {
                 MqttCMInfo("val fetched is %s\n", *val);
         }
-}
-
-int validateForMqttInit()
-{
-	if(mqinit == 0)
-	{
-		if (locationId != NULL && clientId != NULL && broker != NULL)
-		{
-			if ((strlen(locationId) != 0) && (strlen(clientId) != 0) && (strlen(broker) !=0) && (connectFlag == 1))
-			{
-				MqttCMInfo("All 3 mandatory params locationId, NodeId and broker are set, proceed to mqtt init\n");
-				mqinit = 1;
-				pthread_mutex_lock (&mqtt_mut);
-				pthread_cond_signal(&mqtt_con);
-				pthread_mutex_unlock (&mqtt_mut);
-				return 0;
-			}
-			else
-			{
-				MqttCMInfo("All 3 mandatory params locationId, NodeId and broker are not set, waiting..\n");
-			}
-		}
-		else
-		{
-			MqttCMInfo("All 3 mandatory params locationId, NodeId and broker are not set, waiting..\n");
-		}
-	}
-	return 1;
 }
 
 void execute_mqtt_script(char *name)
@@ -1026,26 +842,25 @@ void fetchMqttParamsFromDB()
 	char tmpBroker[256]={'\0'};
 	char tmpClientId[64]={'\0'};
 	char tmpPort[32]={'\0'};
+	char *client_id = NULL;
 
-	MqttCMInfo("before locationid\n");
 	Get_Mqtt_LocationId(tmpLocationId);
 	if(tmpLocationId[0] != '\0')
 	{
 		locationId = strdup(tmpLocationId);
 	}
 
-	MqttCMInfo("bedore broker\n");
 	Get_Mqtt_Broker(tmpBroker);
 	if(tmpBroker[0] != '\0')
 	{
 		broker = strdup(tmpBroker);
 	}
 	
-	MqttCMInfo("Before port\n");
-	if( get_clientId() != NULL && strlen(get_clientId()) !=0 )
+	client_id = Get_Mqtt_ClientId();
+	if( client_id != NULL && strlen(client_id) !=0 )
 	{
 
-              strncpy(tmpClientId, get_clientId(), sizeof(tmpClientId)-1);
+              strncpy(tmpClientId, client_id, sizeof(tmpClientId)-1);
 
               if(tmpClientId[0] != '\0')
 	      {
@@ -1053,7 +868,6 @@ void fetchMqttParamsFromDB()
 	      }
 	}
 
-	MqttCMInfo("Before port\n");
 	Get_Mqtt_Port(tmpPort);
 	if(tmpPort[0] != '\0')
 	{
@@ -1062,7 +876,7 @@ void fetchMqttParamsFromDB()
 	MqttCMInfo("Mqtt params fetched from DB, locationId %s broker %s clientId %s Port %s\n", locationId, broker, clientId,Port);
 }
 
-rbusError_t webcfgMqttLocationIdSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSetHandlerOptions_t* opts)
+rbusError_t MqttLocationIdSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSetHandlerOptions_t* opts)
 {
 	(void) handle;
 	(void) opts;
@@ -1119,7 +933,7 @@ rbusError_t webcfgMqttLocationIdSetHandler(rbusHandle_t handle, rbusProperty_t p
 	return RBUS_ERROR_SUCCESS;
 }
 
-rbusError_t webcfgMqttBrokerSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSetHandlerOptions_t* opts)
+rbusError_t MqttBrokerSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSetHandlerOptions_t* opts)
 {
 	(void) handle;
 	(void) opts;
@@ -1176,7 +990,7 @@ rbusError_t webcfgMqttBrokerSetHandler(rbusHandle_t handle, rbusProperty_t prop,
 	return RBUS_ERROR_SUCCESS;
 }
 
-rbusError_t webcfgMqttPortSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSetHandlerOptions_t* opts)
+rbusError_t MqttPortSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSetHandlerOptions_t* opts)
 {
 	(void) handle;
 	(void) opts;
@@ -1233,7 +1047,7 @@ rbusError_t webcfgMqttPortSetHandler(rbusHandle_t handle, rbusProperty_t prop, r
 	return RBUS_ERROR_SUCCESS;
 }
 
-rbusError_t webcfgMqttConnModeSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSetHandlerOptions_t* opts)
+rbusError_t MqttConnModeSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSetHandlerOptions_t* opts)
 {
 	(void) handle;
 	(void) opts;
@@ -1297,7 +1111,8 @@ rbusError_t webcfgMqttConnModeSetHandler(rbusHandle_t handle, rbusProperty_t pro
 	return RBUS_ERROR_SUCCESS;
 }
 
-rbusError_t webcfgMqttConnectSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSetHandlerOptions_t* opts)
+
+rbusError_t MqttConnectSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSetHandlerOptions_t* opts)
 {
 	(void) handle;
 	(void) opts;
@@ -1309,7 +1124,6 @@ rbusError_t webcfgMqttConnectSetHandler(rbusHandle_t handle, rbusProperty_t prop
 		return RBUS_ERROR_ELEMENT_DOES_NOT_EXIST;
 	}
 
-	//rbusError_t retPsmSet = RBUS_ERROR_BUS_ERROR;
 	MqttCMInfo("Parameter name is %s \n", paramName);
 	rbusValueType_t type_t;
 	rbusValue_t paramValue_t = rbusProperty_GetValue(prop);
@@ -1338,7 +1152,7 @@ rbusError_t webcfgMqttConnectSetHandler(rbusHandle_t handle, rbusProperty_t prop
 					connectMqtt = strdup(data);
 					connectFlag = 1;
 					free(data);
-					MqttCMInfo("cm_mqtt_init connect %s\n", connectMqtt);
+					MqttCMInfo("mqttCMConnectBroker connect %s\n", connectMqtt);
 					pthread_cond_signal(&mqtt1_con);
 				}
 				else
@@ -1355,7 +1169,7 @@ rbusError_t webcfgMqttConnectSetHandler(rbusHandle_t handle, rbusProperty_t prop
 	return RBUS_ERROR_SUCCESS;
 }
 
-rbusError_t webcfgMqttSubscribeSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSetHandlerOptions_t* opts)
+rbusError_t MqttSubscribeSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSetHandlerOptions_t* opts)
 {
 	(void) handle;
 	(void) opts;
@@ -1367,7 +1181,6 @@ rbusError_t webcfgMqttSubscribeSetHandler(rbusHandle_t handle, rbusProperty_t pr
 		return RBUS_ERROR_ELEMENT_DOES_NOT_EXIST;
 	}
 
-	//rbusError_t retPsmSet = RBUS_ERROR_BUS_ERROR;
 	MqttCMInfo("Parameter name is %s \n", paramName);
 	rbusValueType_t type_t;
 	rbusValue_t paramValue_t = rbusProperty_GetValue(prop);
@@ -1411,7 +1224,7 @@ rbusError_t webcfgMqttSubscribeSetHandler(rbusHandle_t handle, rbusProperty_t pr
 	return RBUS_ERROR_SUCCESS;
 }
 
-rbusError_t webcfgMqttPublishSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSetHandlerOptions_t* opts)
+rbusError_t MqttPublishSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSetHandlerOptions_t* opts)
 {
 	(void) handle;
 	(void) opts;
@@ -1423,7 +1236,6 @@ rbusError_t webcfgMqttPublishSetHandler(rbusHandle_t handle, rbusProperty_t prop
 		return RBUS_ERROR_ELEMENT_DOES_NOT_EXIST;
 	}
 
-	//rbusError_t retPsmSet = RBUS_ERROR_BUS_ERROR;
 	MqttCMInfo("Parameter name is %s \n", paramName);
 	rbusValueType_t type_t;
 	rbusValue_t paramValue_t = rbusProperty_GetValue(prop);
@@ -1456,7 +1268,14 @@ rbusError_t webcfgMqttPublishSetHandler(rbusHandle_t handle, rbusProperty_t prop
 						char *pub_get_topic = NULL;
 						Get_Mqtt_LocationId(locationID);
 						MqttCMInfo("locationID is %s\n", locationID);
-						snprintf(publish_get_topic, MAX_MQTT_LEN, "%s%s/%s", MQTT_PUBLISH_GET_TOPIC_PREFIX, g_ClientID,locationID);
+						if(clientId !=NULL)
+						{
+							snprintf(publish_get_topic, MAX_MQTT_LEN, "%s%s/%s", MQTT_PUBLISH_GET_TOPIC_PREFIX, clientId,locationID);
+						}
+						else
+						{
+							MqttCMError("Failed in publish_get_topic as clientId is NULL\n");
+						}
 						if(strlen(publish_get_topic) >0)
 						{
 							pub_get_topic = strdup(publish_get_topic);
@@ -1480,7 +1299,7 @@ rbusError_t webcfgMqttPublishSetHandler(rbusHandle_t handle, rbusProperty_t prop
 	return RBUS_ERROR_SUCCESS;
 }
 
-rbusError_t webcfgMqttPublishNotificationSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSetHandlerOptions_t* opts)
+rbusError_t MqttPublishNotificationSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSetHandlerOptions_t* opts)
 {
 	(void) handle;
 	(void) opts;
@@ -1507,19 +1326,16 @@ rbusError_t webcfgMqttPublishNotificationSetHandler(rbusHandle_t handle, rbusPro
 		if(type_t == RBUS_STRING) {
 			char* data = rbusValue_ToString(paramValue_t, NULL, 0);
 			if(data) {
-					//printf("Call datamodel function  with data %s\n", (char*)data);
-
 					if(publishnotify) {
 						free(publishnotify);
 						publishnotify= NULL;
 					}
 					publishnotify = data;
-					//printf("publishnotify received is \n%s len %zu\n", publishnotify, strlen(publishnotify));
 					MqttCMInfo("publish_notify_mqtt with json string payload\n");
 					char *payload_str = strdup(publishnotify);
 					//printf("payload_str %s len %zu\n", payload_str, strlen(payload_str));
 					publish_notify_mqtt(NULL, payload_str, strlen(payload_str));
-					//WEBCFG_FREE(payload_str);
+					//MQTTCM_FREE(payload_str);
 					MqttCMInfo("publish_notify_mqtt done\n");
 				}
 		} else {
@@ -1529,7 +1345,7 @@ rbusError_t webcfgMqttPublishNotificationSetHandler(rbusHandle_t handle, rbusPro
 	}
 	return RBUS_ERROR_SUCCESS;
 }
-rbusError_t webcfgMqttLocationIdGetHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
+rbusError_t MqttLocationIdGetHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
 {
 
     (void) handle;
@@ -1583,7 +1399,7 @@ rbusError_t webcfgMqttLocationIdGetHandler(rbusHandle_t handle, rbusProperty_t p
     return RBUS_ERROR_SUCCESS;
 }
 
-rbusError_t webcfgMqttBrokerGetHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
+rbusError_t MqttBrokerGetHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
 {
 
     (void) handle;
@@ -1637,7 +1453,7 @@ rbusError_t webcfgMqttBrokerGetHandler(rbusHandle_t handle, rbusProperty_t prope
     return RBUS_ERROR_SUCCESS;
 }
 
-rbusError_t webcfgMqttConnModeGetHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
+rbusError_t MqttConnModeGetHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
 {
 
     (void) handle;
@@ -1691,7 +1507,7 @@ rbusError_t webcfgMqttConnModeGetHandler(rbusHandle_t handle, rbusProperty_t pro
     return RBUS_ERROR_SUCCESS;
 }
 
-rbusError_t webcfgMqttPortGetHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
+rbusError_t MqttPortGetHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
 {
 
     (void) handle;
@@ -1748,133 +1564,36 @@ rbusError_t webcfgMqttPortGetHandler(rbusHandle_t handle, rbusProperty_t propert
     return RBUS_ERROR_SUCCESS;
 }
 
-rbusError_t webcfgMqttOnConnectHandler(rbusHandle_t handle, rbusEventSubAction_t action, const char* eventName, rbusFilter_t filter, int32_t interval, bool* autoPublish)
-{
-    (void)handle;
-    (void)filter;
-    (void)autoPublish;
-    (void)interval;
-
-    MqttCMInfo(
-        "webcfgMqttOnConnectHandler called:\n" \
-        "\taction=%s\n" \
-        "\teventName=%s\n",
-        action == RBUS_EVENT_ACTION_SUBSCRIBE ? "subscribe" : "unsubscribe",
-        eventName);
-
-    if(!strcmp(WEBCFG_MQTT_ONCONNECT_CALLBACK, eventName))
-    {
-        webcfg_onconnect = action == RBUS_EVENT_ACTION_SUBSCRIBE ? 1 : 0;
-    }
-    else
-    {
-        MqttCMError("provider: webcfgMqttOnConnectHandler unexpected eventName %s\n", eventName);
-    }
-
-    return RBUS_ERROR_SUCCESS;
-}
-
-rbusError_t webcfgMqttSubscribeHandler(rbusHandle_t handle, rbusEventSubAction_t action, const char* eventName, rbusFilter_t filter, int32_t interval, bool* autoPublish)
-{
-    (void)handle;
-    (void)filter;
-    (void)autoPublish;
-    (void)interval;
-
-    MqttCMInfo(
-        "webcfgMqttSubscribeHandler called:\n" \
-        "\taction=%s\n" \
-        "\teventName=%s\n",
-        action == RBUS_EVENT_ACTION_SUBSCRIBE ? "subscribe" : "unsubscribe",
-        eventName);
-
-    if(!strcmp(WEBCFG_MQTT_SUBSCRIBE_CALLBACK, eventName))
-    {
-        webcfg_subscribe = action == RBUS_EVENT_ACTION_SUBSCRIBE ? 1 : 0;
-    }
-    else
-    {
-        MqttCMError("provider: webcfgMqttSubscribeHandler unexpected eventName %s\n", eventName);
-    }
-
-    return RBUS_ERROR_SUCCESS;
-}
-
-rbusError_t webcfgMqttOnMessageHandler(rbusHandle_t handle, rbusEventSubAction_t action, const char* eventName, rbusFilter_t filter, int32_t interval, bool* autoPublish)
-{
-    (void)handle;
-    (void)filter;
-    (void)autoPublish;
-    (void)interval;
-
-    MqttCMInfo(
-        "webcfgMqttOnMessageHandler called:\n" \
-        "\taction=%s\n" \
-        "\teventName=%s\n",
-        action == RBUS_EVENT_ACTION_SUBSCRIBE ? "subscribe" : "unsubscribe",
-        eventName);
-
-    if(!strcmp(WEBCFG_MQTT_ONMESSAGE_CALLBACK, eventName))
-    {
-        webcfg_onmessage = action == RBUS_EVENT_ACTION_SUBSCRIBE ? 1 : 0;
-    }
-    else
-    {
-        MqttCMError("provider: webcfgMqttOnMessageHandler unexpected eventName %s\n", eventName);
-    }
-
-    return RBUS_ERROR_SUCCESS;
-}
-
-rbusError_t webcfgMqttOnPublishHandler(rbusHandle_t handle, rbusEventSubAction_t action, const char* eventName, rbusFilter_t filter, int32_t interval, bool* autoPublish)
-{
-    (void)handle;
-    (void)filter;
-    (void)autoPublish;
-    (void)interval;
-
-    MqttCMInfo(
-        "webcfgMqttOnPublishHandler called:\n" \
-        "\taction=%s\n" \
-        "\teventName=%s\n",
-        action == RBUS_EVENT_ACTION_SUBSCRIBE ? "subscribe" : "unsubscribe",
-        eventName);
-
-    if(!strcmp(WEBCFG_MQTT_ONPUBLISH_CALLBACK, eventName))
-    {
-        webcfg_onpublish = action == RBUS_EVENT_ACTION_SUBSCRIBE ? 1 : 0;
-    }
-    else
-    {
-        MqttCMError("provider: webcfgMqttOnPublishHandler unexpected eventName %s\n", eventName);
-    }
-
-    return RBUS_ERROR_SUCCESS;
-}
-
 void mqtt_subscribe()
 {
 	int rc;
 	char topic[256] = { 0 };
 	if(!subscribeFlag)
 	{
-		snprintf(topic,MAX_MQTT_LEN,"%s%s", MQTT_SUBSCRIBE_TOPIC_PREFIX,g_ClientID);
-		if(topic != NULL && strlen(topic)>0)
+		if(clientId !=NULL)
 		{
-			MqttCMInfo("subscribe to topic %s\n", topic);
-		}
+			snprintf(topic,MAX_MQTT_LEN,"%s%s", MQTT_SUBSCRIBE_TOPIC_PREFIX,clientId);
+			if(topic != NULL && strlen(topic)>0)
+			{
+				MqttCMInfo("subscribe to topic %s\n", topic);
+			}
 
-		rc = mosquitto_subscribe(mosq, NULL, topic, 1);
+			rc = mosquitto_subscribe(mosq, NULL, topic, 1);
 
-		if(rc != MOSQ_ERR_SUCCESS)
-		{
-			MqttCMError("Error subscribing: %s\n", mosquitto_strerror(rc));
-			mosquitto_disconnect(mosq);
+			if(rc != MOSQ_ERR_SUCCESS)
+			{
+				MqttCMError("Error subscribing: %s\n", mosquitto_strerror(rc));
+				mosquitto_disconnect(mosq);
+			}
+			else
+			{
+				MqttCMInfo("subscribe to topic %s success\n", topic);
+				subscribeFlag = 1;
+			}
 		}
 		else
 		{
-			MqttCMInfo("subscribe to topic %s success\n", topic);
-			subscribeFlag = 1;
+			MqttCMError("Failed to subscribe as clientId is NULL\n");
 		}
 	}
 }
@@ -1883,74 +1602,28 @@ int regMqttDataModel()
 {
 	rbusError_t ret = RBUS_ERROR_SUCCESS;
 	rbusDataElement_t dataElements[SINGLE_CONN_ELEMENTS] = {
-
-		{MQTT_LOCATIONID_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {webcfgMqttLocationIdGetHandler, webcfgMqttLocationIdSetHandler, NULL, NULL, NULL, NULL}},
-		{MQTT_BROKER_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {webcfgMqttBrokerGetHandler, webcfgMqttBrokerSetHandler, NULL, NULL, NULL, NULL}},
-		{MQTT_PORT_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {webcfgMqttPortGetHandler, webcfgMqttPortSetHandler, NULL, NULL, NULL, NULL}},
-		{MQTT_CONNECTMODE_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {webcfgMqttConnModeGetHandler, webcfgMqttConnModeSetHandler, NULL, NULL, NULL, NULL}},
-		{MQTT_CONNECT_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {NULL, webcfgMqttConnectSetHandler, NULL, NULL, NULL, NULL}},
-		{MQTT_SUBSCRIBE_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {NULL, webcfgMqttSubscribeSetHandler, NULL, NULL, NULL, NULL}},
-		{MQTT_PUBLISHGET_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {NULL, webcfgMqttPublishSetHandler, NULL, NULL, NULL, NULL}},
-		{MQTT_PUBLISHNOTIF_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {NULL, webcfgMqttPublishNotificationSetHandler, NULL, NULL, NULL, NULL}},
-		{WEBCFG_MQTT_ONCONNECT_CALLBACK, RBUS_ELEMENT_TYPE_EVENT, {NULL, NULL, NULL, NULL, webcfgMqttOnConnectHandler, NULL}},
-		{WEBCFG_MQTT_SUBSCRIBE_CALLBACK, RBUS_ELEMENT_TYPE_EVENT, {NULL, NULL, NULL, NULL, webcfgMqttSubscribeHandler, NULL}},
-		{WEBCFG_MQTT_ONMESSAGE_CALLBACK, RBUS_ELEMENT_TYPE_EVENT, {NULL, NULL, NULL, NULL, webcfgMqttOnMessageHandler, NULL}},
-		{WEBCFG_MQTT_ONPUBLISH_CALLBACK, RBUS_ELEMENT_TYPE_EVENT, {NULL, NULL, NULL, NULL, webcfgMqttOnPublishHandler, NULL}},
+		{MQTT_BROKER_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {MqttBrokerGetHandler, MqttBrokerSetHandler, NULL, NULL, NULL, NULL}},
+		{MQTT_PORT_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {MqttPortGetHandler, MqttPortSetHandler, NULL, NULL, NULL, NULL}},
+		{MQTT_LOCATIONID_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {MqttLocationIdGetHandler, MqttLocationIdSetHandler, NULL, NULL, NULL, NULL}},
+		{MQTT_CONNECTMODE_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {MqttConnModeGetHandler, MqttConnModeSetHandler, NULL, NULL, NULL, NULL}},
+		{MQTT_CONNECT_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {NULL, MqttConnectSetHandler, NULL, NULL, NULL, NULL}},
+		{MQTT_SUBSCRIBE_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {NULL, MqttSubscribeSetHandler, NULL, NULL, NULL, NULL}},
+		{MQTT_PUBLISHGET_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {NULL, MqttPublishSetHandler, NULL, NULL, NULL, NULL}},
+		{MQTT_PUBLISHNOTIF_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {NULL, MqttPublishNotificationSetHandler, NULL, NULL, NULL, NULL}}
 	};
 
 	ret = rbus_regDataElements(get_global_rbus_handle(), SINGLE_CONN_ELEMENTS, dataElements);
 	if(ret == RBUS_ERROR_SUCCESS)
 	{
+		MqttCMInfo("regMqttDataModel success %s,%s\n", MQTT_BROKER_PARAM, MQTT_PORT_PARAM);
+		rbusRegWebcfgDataElements();
 		fetchMqttParamsFromDB();
 	}
-	return ret;
-}
-
-
-char * createMqttPubHeader(char * payload, char * dest, ssize_t * payload_len)
-{
-	char * destination = NULL;
-	char * content_type = NULL;
-	char * content_length = NULL;
-	char *pub_headerlist = NULL;
-
-	pub_headerlist = (char *) malloc(sizeof(char) * 1024);
-
-	if(pub_headerlist != NULL)
+	else
 	{
-		if(payload != NULL)
-		{
-			if(dest != NULL)
-			{
-				destination = (char *) malloc(sizeof(char)*MAX_BUF_SIZE);
-				if(destination !=NULL)
-				{
-					snprintf(destination, MAX_BUF_SIZE, "Destination: %s", dest);
-					MqttCMInfo("destination formed %s\n", destination);
-				}
-			}
-
-			content_type = (char *) malloc(sizeof(char)*MAX_BUF_SIZE);
-			if(content_type !=NULL)
-			{
-				snprintf(content_type, MAX_BUF_SIZE, "\r\nContent-type: application/json");
-				MqttCMInfo("content_type formed %s\n", content_type);
-			}
-
-			content_length = (char *) malloc(sizeof(char)*MAX_BUF_SIZE);
-			if(content_length !=NULL)
-			{
-				snprintf(content_length, MAX_BUF_SIZE, "\r\nContent-length: %zu", strlen(payload));
-				MqttCMInfo("content_length formed %s\n", content_length);
-			}
-
-			MqttCMInfo("Framing publish notification header\n");
-			snprintf(pub_headerlist, 1024, "%s%s%s\r\n\r\n%s\r\n", (destination!=NULL)?destination:"", (content_type!=NULL)?content_type:"", (content_length!=NULL)?content_length:"",(payload!=NULL)?payload:"");
-	    }
+		MqttCMError("Failed to register rbus data model ret %d\n", ret);
 	}
-	MqttCMInfo("mqtt pub_headerlist is \n%s", pub_headerlist);
-	*payload_len = strlen(pub_headerlist);
-	return pub_headerlist;
+	return ret;
 }
 
 int writeToDBFile(char *db_file_path, char *data, size_t size)
@@ -1976,20 +1649,42 @@ int writeToDBFile(char *db_file_path, char *data, size_t size)
 	}
 }
 
-int main()
+void get_interface(char **interface)
 {
-	#ifdef INCLUDE_BREAKPAD
-		breakpad_ExceptionHandler();
-	#endif
-	printf("********** Starting component: %s **********\n ", pComponentName);
-	mqttCMRbusInit();
-	MqttCMInfo("Registering mqtt CM parameters\n");
-	regMqttDataModel();
-	pthread_mutex_lock(&mqtt1_mut);
-	MqttCMInfo("waiting for mqtt_connect\n");
-	pthread_cond_wait(&mqtt1_con, &mqtt1_mut);
-	MqttCMInfo("pthread_mutex_unlock mqtt1_mut\n");
-	pthread_mutex_unlock (&mqtt1_mut);
-	cm_mqtt_init();
-	return 0;
+#if ! defined(DEVICE_EXTENDER)
+        FILE *fp = fopen(DEVICE_PROPS_FILE, "r");
+
+        if (NULL != fp)
+        {
+                char str[255] = {'\0'};
+                while (fgets(str, sizeof(str), fp) != NULL)
+                {
+                    char *value = NULL;
+
+                    if(NULL != (value = strstr(str, "WEBCONFIG_INTERFACE=")))
+                    {
+                        value = value + strlen("WEBCONFIG_INTERFACE=");
+                        value[strlen(value)-1] = '\0';
+                        *interface = strdup(value);
+                        break;
+                    }
+
+                }
+                fclose(fp);
+        }
+        else
+        {
+                MqttCMError("Failed to open device.properties file:%s\n", DEVICE_PROPS_FILE);
+        }
+
+        if (NULL == *interface)
+        {
+                MqttCMError("Interface is not present in device.properties\n");
+
+        }
+        else
+        {
+                MqttCMInfo("interface fetched is %s\n", *interface);
+        }
+#endif
 }
