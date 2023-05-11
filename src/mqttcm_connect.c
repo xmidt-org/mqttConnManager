@@ -276,11 +276,11 @@ bool mqttCMConnectBroker()
 				{
 					tls_count = 0;
 					//connect to mqtt broker
-					mosquitto_connect_callback_set(mosq, on_connect);
-					mosquitto_disconnect_callback_set(mosq, on_disconnect);
-					mosquitto_subscribe_callback_set(mosq, on_subscribe);
-					mosquitto_message_callback_set(mosq, on_message);
-					mosquitto_publish_callback_set(mosq, on_publish);
+					mosquitto_connect_v5_callback_set(mosq, on_connect);
+					mosquitto_disconnect_v5_callback_set(mosq, on_disconnect);
+					mosquitto_subscribe_v5_callback_set(mosq, on_subscribe);
+					mosquitto_message_v5_callback_set(mosq, on_message);
+					mosquitto_publish_v5_callback_set(mosq, on_publish);
 
 					MqttCMDebug("port %d\n", port);
 
@@ -302,7 +302,7 @@ bool mqttCMConnectBroker()
 					}
 					while(1)
 					{
-						rc = mosquitto_connect_bind(mosq, broker, port, KEEPALIVE, hostip);
+						rc = mosquitto_connect_bind_v5(mosq, broker, port, KEEPALIVE, hostip, NULL);
 
 						MqttCMInfo("mosquitto_connect_bind rc %d\n", rc);
 						if(rc != MOSQ_ERR_SUCCESS)
@@ -411,7 +411,7 @@ int validateForMqttInit()
 }
 
 // callback called when the client receives a CONNACK message from the broker
-void on_connect(struct mosquitto *mosq, void *obj, int reason_code)
+void on_connect(struct mosquitto *mosq, void *obj, int reason_code, int flag, const mosquitto_property *props)
 {
         MqttCMInfo("on_connect: reason_code %d %s\n", reason_code, mosquitto_connack_string(reason_code));
         if(reason_code != 0)
@@ -428,7 +428,7 @@ void on_connect(struct mosquitto *mosq, void *obj, int reason_code)
 }
 
 // callback called when the broker sends a SUBACK in response to a SUBSCRIBE.
-void on_subscribe(struct mosquitto *mosq, void *obj, int mid, int qos_count, const int *granted_qos)
+void on_subscribe(struct mosquitto *mosq, void *obj, int mid, int qos_count, const int *granted_qos, const mosquitto_property *props)
 {
         int i;
         bool have_subscription = false;
@@ -455,7 +455,7 @@ void on_subscribe(struct mosquitto *mosq, void *obj, int mid, int qos_count, con
 }
 
 /* callback called when the client receives a message. */
-void on_message(struct mosquitto *mosq, void *obj, const struct mosquitto_message *msg)
+void on_message(struct mosquitto *mosq, void *obj, const struct mosquitto_message *msg, const mosquitto_property *props)
 {
 	if(msg !=NULL)
 	{
@@ -514,7 +514,7 @@ void on_message(struct mosquitto *mosq, void *obj, const struct mosquitto_messag
 	}
 }
 
-void on_publish(struct mosquitto *mosq, void *obj, int mid)
+void on_publish(struct mosquitto *mosq, void *obj, int mid, int reason_code, const mosquitto_property *props)
 {
 	MqttCMInfo("Message with mid %d has been published.\n", mid);
 
@@ -523,7 +523,7 @@ void on_publish(struct mosquitto *mosq, void *obj, int mid)
 }
 
 // callback called when the client gets DISCONNECT command from the broker
-void on_disconnect(struct mosquitto *mosq, void *obj, int reason_code)
+void on_disconnect(struct mosquitto *mosq, void *obj, int reason_code, const mosquitto_property *props)
 {
         MqttCMInfo("on_disconnect: reason_code %d %s\n", reason_code, mosquitto_reason_string(reason_code));
         if(reason_code != 0)
