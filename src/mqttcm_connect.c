@@ -1119,6 +1119,7 @@ rbusError_t MqttConnectSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbus
 					MqttCMInfo("mqttCMConnectBroker connect %s\n", connectMqtt);
 					pthread_cond_signal(&mqtt1_con);
 				}
+
 				else
 				{
 					MqttCMError("Invalid value to set\n");
@@ -1188,15 +1189,15 @@ rbusError_t MqttSubscribeSetHandler(rbusHandle_t handle, rbusProperty_t prop, rb
 	return RBUS_ERROR_SUCCESS;
 }
 
-rbusError_t MqttPublishSetHandler(rbusHandle_t handle, char const* methodName, rbusObject_t inParams, rbusObject_t outParams, rbusMethodAsyncHandle_t asyncHandle)
+rbusError_t MqttPublishMethodHandler(rbusHandle_t handle, char const* methodName, rbusObject_t inParams, rbusObject_t outParams, rbusMethodAsyncHandle_t asyncHandle)
 {
         (void)handle;
         (void)asyncHandle;
-        char *payload_str = NULL, *topic_str = NULL, *qos_str;
+        char *payload_str = NULL, *topic_str = NULL, *qos_str = NULL;
         //char *pub_get_topic = NULL;
 
         MqttCMInfo("methodHandler called: %s\n", methodName);
-        rbusObject_fwrite(inParams, 1, stdout);
+        //rbusObject_fwrite(inParams, 1, stdout);
         if(strncmp(methodName, MQTT_PUBLISH_PARAM, maxParamLen) == 0)
         {
                 rbusValue_t payload = rbusObject_GetValue(inParams, "payload");
@@ -1209,13 +1210,13 @@ rbusError_t MqttPublishSetHandler(rbusHandle_t handle, char const* methodName, r
                                 {
                                         MqttCMInfo("payload value recieved is %s\n",payload_str);
                                 }
-
                         }
 
                 }
                 else
                 {
                         MqttCMError("payload is empty\n");
+			return RBUS_ERROR_INVALID_INPUT;
                 }
 
                 rbusValue_t topic = rbusObject_GetValue(inParams, "topic");
@@ -1224,12 +1225,13 @@ rbusError_t MqttPublishSetHandler(rbusHandle_t handle, char const* methodName, r
                         if(rbusValue_GetType(topic) == RBUS_STRING)
                         {
                                 topic_str = (char *) rbusValue_GetString(topic, NULL);
-				MqttCMInfo("topiv value received is %s\n",topic_str);
+				MqttCMInfo("topic value received is %s\n",topic_str);
                         }
                 }
                 else
                 {
                         MqttCMError("topic is empty\n");
+			return RBUS_ERROR_INVALID_INPUT;
                 }
 
                 rbusValue_t qos = rbusObject_GetValue(inParams, "qos");
@@ -1247,6 +1249,7 @@ rbusError_t MqttPublishSetHandler(rbusHandle_t handle, char const* methodName, r
 		else
 		{
 			MqttCMError("qos is empty");
+			return RBUS_ERROR_INVALID_INPUT;
 		}
 		
 		publish_notify_mqtt(topic_str, payload_str, strlen(payload_str));
@@ -1525,7 +1528,7 @@ int regMqttDataModel()
 		{MQTT_CONNECTMODE_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {MqttConnModeGetHandler, MqttConnModeSetHandler, NULL, NULL, NULL, NULL}},
 		{MQTT_CONNECT_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {NULL, MqttConnectSetHandler, NULL, NULL, NULL, NULL}},
 		{MQTT_SUBSCRIBE_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {NULL, MqttSubscribeSetHandler, NULL, NULL, NULL, NULL}},
-		{MQTT_PUBLISH_PARAM, RBUS_ELEMENT_TYPE_METHOD, {NULL, NULL, NULL, NULL, NULL, MqttPublishSetHandler}}
+		{MQTT_PUBLISH_PARAM, RBUS_ELEMENT_TYPE_METHOD, {NULL, NULL, NULL, NULL, NULL, MqttPublishMethodHandler}}
 	};
 
 	ret = rbus_regDataElements(get_global_rbus_handle(), SINGLE_CONN_ELEMENTS, dataElements);
