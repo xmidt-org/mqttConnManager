@@ -21,15 +21,13 @@
 #include <string.h>
 #include <stdlib.h>
 
-#define WEBCFG_ELEMENTS 4
+#define WEBCFG_ELEMENTS 3
 
-#define WEBCFG_MQTT_ONCONNECT_CALLBACK "Device.X_RDK_MQTT.Webconfig.OnConnectCallback"
 #define WEBCFG_MQTT_SUBSCRIBE_CALLBACK "Device.X_RDK_MQTT.Webconfig.OnSubcribeCallback"
 #define WEBCFG_MQTT_ONMESSAGE_CALLBACK "Device.X_RDK_MQTT.Webconfig.OnMessageCallback"
 #define WEBCFG_MQTT_ONPUBLISH_CALLBACK "Device.X_RDK_MQTT.Webconfig.OnPublishCallback"
 
 int rbusRegWebcfgDataElements();
-void sendRusEventWebcfgOnConnect();
 void sendRusEventWebcfgOnSubscribe();
 void sendRusEventWebcfgOnMessage(char *mqttdata, int dataSize);
 void sendRusEventWebcfgOnPublish(int mid);
