@@ -22,40 +22,9 @@
 #include "mqttcm_log.h"
 #include "mqttcm_connect.h"
 
-int webcfg_onconnect = 0;
 int webcfg_subscribe = 0;
 int webcfg_onmessage = 0;
 int webcfg_onpublish = 0;
-
-void sendRusEventWebcfgOnConnect()
-{
-	if(webcfg_onconnect)
-	{
-	    rbusEvent_t event = {0};
-	    rbusObject_t data;
-	    rbusValue_t value;
-
-	    MqttCMInfo("publishing Event\n");
-
-	    rbusValue_Init(&value);
-	    rbusValue_SetString(value, "success");
-
-	    rbusObject_Init(&data, NULL);
-	    rbusObject_SetValue(data, "value", value);
-
-	    event.name = WEBCFG_MQTT_ONCONNECT_CALLBACK;
-	    event.data = data;
-	    event.type = RBUS_EVENT_GENERAL;
-
-	    rbusError_t rc = rbusEvent_Publish(get_global_rbus_handle(), &event);
-
-	    rbusValue_Release(value);
-	    rbusObject_Release(data);
-
-	    if(rc != RBUS_ERROR_SUCCESS)
-		MqttCMError("provider: rbusEvent_Publish onconnect event failed: %d\n", rc);
-	}
-}
 
 void sendRusEventWebcfgOnSubscribe()
 {
@@ -150,32 +119,6 @@ void sendRusEventWebcfgOnPublish(int mid)
 	}
 }
 	
-rbusError_t webcfgMqttOnConnectHandler(rbusHandle_t handle, rbusEventSubAction_t action, const char* eventName, rbusFilter_t filter, int32_t interval, bool* autoPublish)
-{
-    (void)handle;
-    (void)filter;
-    (void)autoPublish;
-    (void)interval;
-
-    MqttCMInfo(
-        "webcfgMqttOnConnectHandler called:\n" \
-        "\taction=%s\n" \
-        "\teventName=%s\n",
-        action == RBUS_EVENT_ACTION_SUBSCRIBE ? "subscribe" : "unsubscribe",
-        eventName);
-
-    if(!strcmp(WEBCFG_MQTT_ONCONNECT_CALLBACK, eventName))
-    {
-        webcfg_onconnect = action == RBUS_EVENT_ACTION_SUBSCRIBE ? 1 : 0;
-    }
-    else
-    {
-        MqttCMError("provider: webcfgMqttOnConnectHandler unexpected eventName %s\n", eventName);
-    }
-    MqttCMInfo("webcfg_onconnect is %d\n", webcfg_onconnect);
-    return RBUS_ERROR_SUCCESS;
-}
-
 rbusError_t webcfgMqttSubscribeHandler(rbusHandle_t handle, rbusEventSubAction_t action, const char* eventName, rbusFilter_t filter, int32_t interval, bool* autoPublish)
 {
     (void)handle;
@@ -258,7 +201,6 @@ int rbusRegWebcfgDataElements()
 {
 	rbusError_t ret = RBUS_ERROR_SUCCESS;
 	rbusDataElement_t webcfgDataElements[WEBCFG_ELEMENTS] = {
-		{WEBCFG_MQTT_ONCONNECT_CALLBACK, RBUS_ELEMENT_TYPE_EVENT, {NULL, NULL, NULL, NULL, webcfgMqttOnConnectHandler, NULL}},
 		{WEBCFG_MQTT_SUBSCRIBE_CALLBACK, RBUS_ELEMENT_TYPE_EVENT, {NULL, NULL, NULL, NULL, webcfgMqttSubscribeHandler, NULL}},
 		{WEBCFG_MQTT_ONMESSAGE_CALLBACK, RBUS_ELEMENT_TYPE_EVENT, {NULL, NULL, NULL, NULL, webcfgMqttOnMessageHandler, NULL}},
 		{WEBCFG_MQTT_ONPUBLISH_CALLBACK, RBUS_ELEMENT_TYPE_EVENT, {NULL, NULL, NULL, NULL, webcfgMqttOnPublishHandler, NULL}},
