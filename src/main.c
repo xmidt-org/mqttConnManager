@@ -70,11 +70,6 @@ int main()
 			MqttCMInfo("Registering mqtt CM parameters\n");
 			regMqttDataModel();
 			MqttCMInfo("Proceed to mqtt connection with default configuration\n");
-			pthread_mutex_lock(get_global_mqtt1_mut());
-			MqttCMInfo("waiting for mqtt_connect\n");//TODO: Remove connect trigger
-			pthread_cond_wait(get_global_mqtt1_con(), get_global_mqtt1_mut());
-			MqttCMInfo("pthread_mutex_unlock mqtt1_mut\n");
-			pthread_mutex_unlock (get_global_mqtt1_mut());
 			mqttCMConnectBroker();
 			MqttCMInfo("mqttCMConnectBroker done\n");
 		}

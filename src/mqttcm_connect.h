@@ -40,7 +40,7 @@
 #include <cimplog.h>
 #include <uuid/uuid.h>
 
-#define MQTT_COMPONENT_NAME  "mqttCM"
+#define MQTT_COMPONENT_NAME  "mqttConnManager"
 
 #define MQTT_CONFIG_FILE     "/tmp/.mqttconfig"
 #define MOSQ_TLS_VERSION     "tlsv1.2"
@@ -58,7 +58,7 @@
 #define MQTT_PORT_PARAM           "Device.X_RDK_MQTT.Port"
 
 #define MQTT_CONNECTMODE_PARAM    "Device.X_RDK_MQTT.ConnectionMode"
-#define MQTT_CONNECT_PARAM        "Device.X_RDK_MQTT.Connect"
+#define MQTT_CONNSTATUS_PARAM     "Device.X_RDK_MQTT.ConnectionStatus"
 #define MQTT_SUBSCRIBE_PARAM      "Device.X_RDK_MQTT.Subscribe"
 #define MQTT_PUBLISHGET_PARAM     "Device.X_RDK_MQTT.Webconfig.PublishGET"
 #define MQTT_PUBLISHNOTIF_PARAM   "Device.X_RDK_MQTT.WebConfig.PublishNotification"
