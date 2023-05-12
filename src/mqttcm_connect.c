@@ -32,8 +32,6 @@ static char* Port =NULL;
 static char* broker = NULL;
 static char* connMode = NULL;
 static char* subscribe = NULL;
-static char* publishget = NULL;
-static char *publishnotify = NULL;
 static int mqinit = 0;
 static rbusHandle_t rbus_handle;
 static char* mqttdata = NULL;
@@ -649,40 +647,6 @@ void publish_notify_mqtt(char *pub_topic, void *payload, ssize_t len)
 {
         int rc;
 
-	if(pub_topic == NULL)
-	{
-		char publish_topic[256] = { 0 };
-		char locationID[256] = { 0 };
-
-		Get_Mqtt_LocationId(locationID);
-                MqttCMInfo("locationID fetched from tr181 is %s\n", locationID);
-                if(clientId !=NULL)
-                {
-		        snprintf(publish_topic, MAX_MQTT_LEN, "%s%s/%s", MQTT_PUBLISH_NOTIFY_TOPIC_PREFIX, clientId,locationID);
-
-			if(strlen(publish_topic)>0)
-			{
-				MqttCMInfo("publish_topic fetched from tr181 is %s\n", publish_topic);
-				pub_topic = strdup(publish_topic);
-				MqttCMInfo("pub_topic from file is %s\n", pub_topic);
-			}
-			else
-			{
-				MqttCMError("Failed to fetch publish topic\n");
-			}
-		}
-		else
-		{
-			MqttCMError("Failed to publish as clientId is NULL\n");
-		}
-	}
-	else
-	{
-		MqttCMInfo("pub_topic is %s\n", pub_topic);
-	}
-	MqttCMInfo("Payload published is \n%s\n", (char*)payload);
-	//writeToDBFile("/tmp/payload.bin", (char *)payload, len);
-
 	mosquitto_property *props = NULL;
 	uuid_t uuid;
 	uuid_generate_time(uuid);
@@ -696,11 +660,11 @@ void publish_notify_mqtt(char *pub_topic, void *payload, ssize_t len)
 
 	if(ret != MOSQ_ERR_SUCCESS)
 	{
-		printf("Failed to add property: %d\n", ret);
+		MqttCMError("Failed to add property: %d\n", ret);
 	}
 
-        //rc = mosquitto_publish(mosq, NULL, pub_topic, len, payload, 2, false);
 	rc = mosquitto_publish_v5(mosq, NULL, pub_topic, len, payload, 2, false, props);
+
 	MqttCMInfo("Publish rc %d\n", rc);
         if(rc != MOSQ_ERR_SUCCESS)
 	{
@@ -1136,127 +1100,82 @@ rbusError_t MqttSubscribeSetHandler(rbusHandle_t handle, rbusProperty_t prop, rb
 	return RBUS_ERROR_SUCCESS;
 }
 
-rbusError_t MqttPublishSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSetHandlerOptions_t* opts)
+rbusError_t MqttPublishMethodHandler(rbusHandle_t handle, char const* methodName, rbusObject_t inParams, rbusObject_t outParams, rbusMethodAsyncHandle_t asyncHandle)
 {
-	(void) handle;
-	(void) opts;
-	char const* paramName = rbusProperty_GetName(prop);
+        (void)handle;
+        (void)asyncHandle;
+        char *payload_str = NULL, *topic_str = NULL, *qos_str = NULL;
+        //char *pub_get_topic = NULL;
 
-	if(strncmp(paramName, MQTT_PUBLISHGET_PARAM, maxParamLen) != 0)
-	{
-		MqttCMError("Unexpected parameter = %s\n", paramName);
-		return RBUS_ERROR_ELEMENT_DOES_NOT_EXIST;
-	}
+        MqttCMInfo("methodHandler called: %s\n", methodName);
+        //rbusObject_fwrite(inParams, 1, stdout);
+        if(strncmp(methodName, MQTT_PUBLISH_PARAM, maxParamLen) == 0)
+        {
+                rbusValue_t payload = rbusObject_GetValue(inParams, "payload");
+                if(payload)
+                {
+                        if(rbusValue_GetType(payload) == RBUS_STRING)
+                        {
+                                payload_str = (char *) rbusValue_GetString(payload, NULL);
+                                if(payload_str)
+                                {
+                                        MqttCMInfo("payload value recieved is %s\n",payload_str);
+                                }
+                        }
 
-	MqttCMInfo("Parameter name is %s \n", paramName);
-	rbusValueType_t type_t;
-	rbusValue_t paramValue_t = rbusProperty_GetValue(prop);
-	if(paramValue_t) {
-		type_t = rbusValue_GetType(paramValue_t);
-	} else {
-		MqttCMError("Invalid input to set\n");
-		return RBUS_ERROR_INVALID_INPUT;
-	}
+                }
+                else
+                {
+                        MqttCMError("payload is empty\n");
+			return RBUS_ERROR_INVALID_INPUT;
+                }
 
-	if(strncmp(paramName, MQTT_PUBLISHGET_PARAM, maxParamLen) == 0) {
+                rbusValue_t topic = rbusObject_GetValue(inParams, "topic");
+                if(topic)
+                {
+                        if(rbusValue_GetType(topic) == RBUS_STRING)
+                        {
+                                topic_str = (char *) rbusValue_GetString(topic, NULL);
+				MqttCMInfo("topic value received is %s\n",topic_str);
+                        }
+                }
+                else
+                {
+                        MqttCMError("topic is empty\n");
+			return RBUS_ERROR_INVALID_INPUT;
+                }
 
-		if(type_t == RBUS_STRING) {
-			char* data = rbusValue_ToString(paramValue_t, NULL, 0);
-			if(data) {
-					MqttCMInfo("Call datamodel function  with data %s\n", (char*)data);
-
-					if(publishget) {
-						free(publishget);
-						publishget= NULL;
-					}
-					publishget = data;
-					MqttCMInfo("mqtt publishget %s\n", publishget);
-					if(!bootupsync)
-					{
-						MqttCMInfo("mqtt is connected and subscribed to topic, trigger bootup sync to cloud.\n");
-						MqttCMInfo("publishget received is \n%s len %zu\n", publishget, strlen(publishget));
-						char publish_get_topic[256] = { 0 };
-						char locationID[256] = { 0 };
-						char *pub_get_topic = NULL;
-						Get_Mqtt_LocationId(locationID);
-						MqttCMInfo("locationID is %s\n", locationID);
-						if(clientId !=NULL)
-						{
-							snprintf(publish_get_topic, MAX_MQTT_LEN, "%s%s/%s", MQTT_PUBLISH_GET_TOPIC_PREFIX, clientId,locationID);
-						}
-						else
-						{
-							MqttCMError("Failed in publish_get_topic as clientId is NULL\n");
-						}
-						if(strlen(publish_get_topic) >0)
-						{
-							pub_get_topic = strdup(publish_get_topic);
-							MqttCMInfo("pub_get_topic from tr181 is %s\n", pub_get_topic);
-							publish_notify_mqtt(pub_get_topic, (void*)publishget, strlen(publishget));
-							MqttCMInfo("triggerBootupSync published to topic %s\n", pub_get_topic);
-						}
-						else
-						{
-							MqttCMError("Failed to fetch publish_get_topic\n");
-						}
-
-						bootupsync = 1;
-					}
-				}
-		} else {
-			MqttCMError("Unexpected value type for property %s\n", paramName);
+                rbusValue_t qos = rbusObject_GetValue(inParams, "qos");
+                if(qos)
+                {
+                        if(rbusValue_GetType(qos) == RBUS_STRING)
+                        {
+                                qos_str = (char *) rbusValue_GetString(qos,NULL);
+                                if(qos_str)
+                                {
+                                        MqttCMInfo("qos from TR181 is %s\n",qos_str);
+                                }
+                        }
+                }
+		else
+		{
+			MqttCMError("qos is empty");
 			return RBUS_ERROR_INVALID_INPUT;
 		}
+		
+		publish_notify_mqtt(topic_str, payload_str, strlen(payload_str));
+		MqttCMInfo("publish_notify_mqtt done\n");
+
 	}
-	return RBUS_ERROR_SUCCESS;
-}
-
-rbusError_t MqttPublishNotificationSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSetHandlerOptions_t* opts)
-{
-	(void) handle;
-	(void) opts;
-	char const* paramName = rbusProperty_GetName(prop);
-
-	if(strncmp(paramName, MQTT_PUBLISHNOTIF_PARAM, maxParamLen) != 0)
+	else 
 	{
-		MqttCMError("Unexpected parameter = %s\n", paramName);
-		return RBUS_ERROR_ELEMENT_DOES_NOT_EXIST;
-	}
-
-	MqttCMInfo("Parameter name is %s \n", paramName);
-	rbusValueType_t type_t;
-	rbusValue_t paramValue_t = rbusProperty_GetValue(prop);
-	if(paramValue_t) {
-		type_t = rbusValue_GetType(paramValue_t);
-	} else {
-		MqttCMError("Invalid input to set\n");
+		MqttCMError("Unexpected value type for property %s\n", methodName);
 		return RBUS_ERROR_INVALID_INPUT;
 	}
-
-	if(strncmp(paramName, MQTT_PUBLISHNOTIF_PARAM, maxParamLen) == 0) {
-
-		if(type_t == RBUS_STRING) {
-			char* data = rbusValue_ToString(paramValue_t, NULL, 0);
-			if(data) {
-					if(publishnotify) {
-						free(publishnotify);
-						publishnotify= NULL;
-					}
-					publishnotify = data;
-					MqttCMInfo("publish_notify_mqtt with json string payload\n");
-					char *payload_str = strdup(publishnotify);
-					//printf("payload_str %s len %zu\n", payload_str, strlen(payload_str));
-					publish_notify_mqtt(NULL, payload_str, strlen(payload_str));
-					//MQTTCM_FREE(payload_str);
-					MqttCMInfo("publish_notify_mqtt done\n");
-				}
-		} else {
-			MqttCMError("Unexpected value type for property %s\n", paramName);
-			return RBUS_ERROR_INVALID_INPUT;
-		}
-	}
 	return RBUS_ERROR_SUCCESS;
+
 }
+
 rbusError_t MqttLocationIdGetHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
 {
 
@@ -1553,8 +1472,7 @@ int regMqttDataModel()
 		{MQTT_CONNECTMODE_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {MqttConnModeGetHandler, MqttConnModeSetHandler, NULL, NULL, NULL, NULL}},
 		{MQTT_CONNSTATUS_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {MqttConnStatusGetHandler, NULL, NULL, NULL, NULL, NULL}},
 		{MQTT_SUBSCRIBE_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {NULL, MqttSubscribeSetHandler, NULL, NULL, NULL, NULL}},
-		{MQTT_PUBLISHGET_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {NULL, MqttPublishSetHandler, NULL, NULL, NULL, NULL}},
-		{MQTT_PUBLISHNOTIF_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {NULL, MqttPublishNotificationSetHandler, NULL, NULL, NULL, NULL}}
+		{MQTT_PUBLISH_PARAM, RBUS_ELEMENT_TYPE_METHOD, {NULL, NULL, NULL, NULL, NULL, MqttPublishMethodHandler}}
 	};
 
 	ret = rbus_regDataElements(get_global_rbus_handle(), SINGLE_CONN_ELEMENTS, dataElements);

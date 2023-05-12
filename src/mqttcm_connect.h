@@ -48,7 +48,7 @@
 #define KEEPALIVE            60
 #define MQTT_PORT            443
 #define MAX_MQTT_LEN         128
-#define SINGLE_CONN_ELEMENTS 8
+#define SINGLE_CONN_ELEMENTS 7
 #define MAX_BUF_SIZE         255
 #define maxParamLen          128
 
@@ -60,8 +60,7 @@
 #define MQTT_CONNECTMODE_PARAM    "Device.X_RDK_MQTT.ConnectionMode"
 #define MQTT_CONNSTATUS_PARAM     "Device.X_RDK_MQTT.ConnectionStatus"
 #define MQTT_SUBSCRIBE_PARAM      "Device.X_RDK_MQTT.Subscribe"
-#define MQTT_PUBLISHGET_PARAM     "Device.X_RDK_MQTT.Webconfig.PublishGET"
-#define MQTT_PUBLISHNOTIF_PARAM   "Device.X_RDK_MQTT.WebConfig.PublishNotification"
+#define MQTT_PUBLISH_PARAM        "Device.X_RDK_MQTT.Publish"
 
 #define MAX_MQTT_RETRY 8
 #define MQTT_RETRY_ERR -1
