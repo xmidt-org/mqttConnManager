@@ -405,7 +405,7 @@ void on_subscribe(struct mosquitto *mosq, void *obj, int mid, int qos_count, con
         //SUBSCRIBE can contain many topics at once
 
 	//send on_subscribe callback event to webconfig via rbus.
-	sendRusEventWebcfgOnSubscribe();
+	sendRbusEventWebcfgOnSubscribe();
 
         for(i=0; i<qos_count; i++)
 	{
@@ -459,7 +459,7 @@ void on_message(struct mosquitto *mosq, void *obj, const struct mosquitto_messag
 					data = NULL;
 
 					//send on_message callback event to webconfig via rbus.
-					sendRusEventWebcfgOnMessage(mqttdata, dataSize);
+					sendRbusEventWebcfgOnMessage(mqttdata, dataSize);
 				}
 				else
 				{
@@ -487,7 +487,7 @@ void on_publish(struct mosquitto *mosq, void *obj, int mid, int reason_code, con
 	MqttCMInfo("Message with mid %d has been published.\n", mid);
 
 	//send on_publish callback event to webconfig via rbus.
-	sendRusEventWebcfgOnPublish(mid);
+	sendRbusEventWebcfgOnPublish(mid);
 }
 
 // callback called when the client gets DISCONNECT command from the broker
@@ -642,7 +642,7 @@ static int mqtt_retry(mqtt_timer_t *timer)
 	return MQTT_DELAY_TAKEN;
 }
 
-/* This function pretends to read some data from a sensor and publish it.*/
+/* This function is used to publish the messages received from components to Broker.*/
 void publish_notify_mqtt(char *pub_topic, void *payload, ssize_t len)
 {
         int rc;

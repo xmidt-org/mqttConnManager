@@ -28,6 +28,6 @@
 #define WEBCFG_MQTT_ONPUBLISH_CALLBACK "Device.X_RDK_MQTT.Webconfig.OnPublishCallback"
 
 int rbusRegWebcfgDataElements();
-void sendRusEventWebcfgOnSubscribe();
-void sendRusEventWebcfgOnMessage(char *mqttdata, int dataSize);
-void sendRusEventWebcfgOnPublish(int mid);
+void sendRbusEventWebcfgOnSubscribe();
+void sendRbusEventWebcfgOnMessage(char *mqttdata, int dataSize);
+void sendRbusEventWebcfgOnPublish(int mid);
