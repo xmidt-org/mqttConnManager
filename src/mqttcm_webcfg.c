@@ -26,7 +26,7 @@ int webcfg_subscribe = 0;
 int webcfg_onmessage = 0;
 int webcfg_onpublish = 0;
 
-void sendRusEventWebcfgOnSubscribe()
+void sendRbusEventWebcfgOnSubscribe()
 {
 	if(webcfg_subscribe)
 	{
@@ -56,7 +56,7 @@ void sendRusEventWebcfgOnSubscribe()
 	}
 }
 
-void sendRusEventWebcfgOnMessage(char *mqttdata, int dataSize)
+void sendRbusEventWebcfgOnMessage(char *mqttdata, int dataSize)
 {
 	if(webcfg_onmessage)
 	{
@@ -86,7 +86,7 @@ void sendRusEventWebcfgOnMessage(char *mqttdata, int dataSize)
 	}
 }
 
-void sendRusEventWebcfgOnPublish(int mid)
+void sendRbusEventWebcfgOnPublish(int mid)
 {
 	if(webcfg_onpublish)
 	{
