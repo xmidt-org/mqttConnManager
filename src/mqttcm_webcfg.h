@@ -22,6 +22,7 @@
 #include <stdlib.h>
 
 #define WEBCFG_ELEMENTS 3
+#define SUBSCRIBE_WEBCONFIG "Webconfig"
 
 #define WEBCFG_MQTT_SUBSCRIBE_CALLBACK "Device.X_RDK_MQTT.Webconfig.OnSubcribeCallback"
 #define WEBCFG_MQTT_ONMESSAGE_CALLBACK "Device.X_RDK_MQTT.Webconfig.OnMessageCallback"

@@ -85,6 +85,15 @@ typedef struct {
   int delay;
 } mqtt_timer_t;
 
+typedef struct comp_topic_name
+{
+	char compName[32];
+	char topic[64];
+	struct comp_topic_name *next;
+} comp_topic_name_t;
+
+int AddToSubscriptionList(char *compName,char *topic);
+const char *getComponentFromTopicName(char *topic);
 void on_connect(struct mosquitto *mosq, void *obj, int reason_code, int flag, const mosquitto_property *props);
 void on_disconnect(struct mosquitto *mosq, void *obj, int reason_code, const mosquitto_property *props);
 void on_subscribe(struct mosquitto *mosq, void *obj, int mid, int qos_count, const int *granted_qos, const mosquitto_property *props);
@@ -106,7 +115,7 @@ pthread_mutex_t *get_global_mqtt_mut(void);
 int regMqttDataModel();
 void execute_mqtt_script(char *name);
 int getHostIPFromInterface(char *interface, char **ip);
-void mqtt_subscribe();
+void mqtt_subscribe(char *comp, char *topic);
 int mqttCMRbusInit();
 bool isRbusEnabled();
 void mqttCMRbus_Uninit();
