@@ -91,6 +91,14 @@ int isReconnectNeeded()
 	return reconnectFlag;
 }
 
+void valueChangeCheck(char *valueStored, char *valueChanged)
+{
+	if(strcmp(valueStored, valueChanged)!= 0)
+	{
+		reconnectFlag=1;
+	}
+}
+
 bool isRbusEnabled() 
 {
 	if(RBUS_ENABLED == rbus_checkStatus())
@@ -855,6 +863,7 @@ rbusError_t MqttLocationIdSetHandler(rbusHandle_t handle, rbusProperty_t prop, r
 				MqttCMInfo("Call datamodel function  with data %s\n", data);
 
 				if(locationId) {
+					valueChangeCheck(locationId, data);
 					free(locationId);
 					locationId = NULL;
 				}
@@ -872,6 +881,10 @@ rbusError_t MqttLocationIdSetHandler(rbusHandle_t handle, rbusProperty_t prop, r
 					MqttCMInfo("psm_set success ret %d for parameter %s and value %s\n", retPsmSet, paramName, locationId);
 				}
 				validateForMqttInit();
+				if(reconnectFlag)
+				{
+					mosquitto_disconnect(mosq);
+				}
 			}
 		} else {
 			MqttCMError("Unexpected value type for property %s\n", paramName);
@@ -912,6 +925,7 @@ rbusError_t MqttBrokerSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusS
 				MqttCMInfo("Call datamodel function  with data %s\n", data);
 
 				if(broker) {
+					valueChangeCheck(broker, data);
 					free(broker);
 					broker= NULL;
 				}
@@ -929,6 +943,10 @@ rbusError_t MqttBrokerSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusS
 					MqttCMInfo("psm_set success ret %d for parameter %s and value %s\n", retPsmSet, paramName, broker);
 				}
 				validateForMqttInit();
+				if(reconnectFlag)
+				{
+					mosquitto_disconnect(mosq);
+				}
 			}
 		} else {
 			MqttCMError("Unexpected value type for property %s\n", paramName);
@@ -969,6 +987,7 @@ rbusError_t MqttPortSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSet
 				MqttCMInfo("Call datamodel function  with data %s\n", data);
 
 				if(Port) {
+					valueChangeCheck(Port, data);
 					free(Port);
 					Port = NULL;
 				}
@@ -986,6 +1005,10 @@ rbusError_t MqttPortSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSet
 					MqttCMInfo("psm_set success ret %d for parameter %s and value %s\n", retPsmSet, paramName, Port);
 				}
 				validateForMqttInit();
+				if(reconnectFlag)
+				{
+					mosquitto_disconnect(mosq);
+				}
 			}
 		} else {
 			MqttCMError("Unexpected value type for property %s\n", paramName);
