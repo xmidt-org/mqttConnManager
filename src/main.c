@@ -32,9 +32,6 @@
 static void sig_handler(int sig);
 #endif
 
-pthread_mutex_t mqttcm_mut= PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t  mqttcm_con= PTHREAD_COND_INITIALIZER;
-
 /*----------------------------------------------------------------------------*/
 /*                             External Functions                             */
 /*----------------------------------------------------------------------------*/
@@ -70,7 +67,13 @@ int main()
 			MqttCMInfo("Registering mqtt CM parameters\n");
 			regMqttDataModel();
 			MqttCMInfo("Proceed to mqtt connection with default configuration\n");
-			mqttCMConnectBroker();
+			do
+			{
+				mqttCMConnectBroker();
+				MqttCMInfo("Reconnectflag value is %d\n", isReconnectNeeded());
+
+			}while(isReconnectNeeded());
+
 			MqttCMInfo("mqttCMConnectBroker done\n");
 		}
 		else
@@ -82,12 +85,6 @@ int main()
 	{
 		MqttCMInfo("DBUS mode. MqttCM is not supported in Dbus\n");
 	}
-
-	MqttCMInfo("pthread_mutex_lock mqttcm_mut and wait.\n");
-	pthread_mutex_lock(&mqttcm_mut);
-	pthread_cond_wait(&mqttcm_con, &mqttcm_mut);
-	MqttCMInfo("pthread_mutex_unlock mqttcm_mut\n");
-	pthread_mutex_unlock (&mqttcm_mut);
 	MqttCMInfo("Exiting mqttcm main thread!!\n");
 	return 1;
 }

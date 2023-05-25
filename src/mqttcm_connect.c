@@ -36,6 +36,7 @@ static int mqinit = 0;
 static rbusHandle_t rbus_handle;
 static char* mqttdata = NULL;
 static int broker_connect = 0;
+static int reconnectFlag = 0;
 
 pthread_mutex_t mqtt_retry_mut=PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t mqtt_retry_con=PTHREAD_COND_INITIALIZER;
@@ -83,6 +84,11 @@ pthread_cond_t *get_global_mqtt_cond(void)
 pthread_mutex_t *get_global_mqtt_mut(void)
 {
     return &mqtt_mut;
+}
+
+int isReconnectNeeded()
+{
+	return reconnectFlag;
 }
 
 bool isRbusEnabled() 
@@ -393,6 +399,12 @@ void on_connect(struct mosquitto *mosq, void *obj, int reason_code, int flag, co
 	MqttCMInfo("on_connect: success. broker_connect set to 1\n");
 	broker_connect = 1;
 
+	if(reconnectFlag)
+	{
+		mqtt_subscribe();
+		reconnectFlag = 0;
+	}
+
 }
 
 // callback called when the broker sends a SUBACK in response to a SUBSCRIBE.
@@ -494,16 +506,18 @@ void on_publish(struct mosquitto *mosq, void *obj, int mid, int reason_code, con
 void on_disconnect(struct mosquitto *mosq, void *obj, int reason_code, const mosquitto_property *props)
 {
         MqttCMInfo("on_disconnect: reason_code %d %s\n", reason_code, mosquitto_reason_string(reason_code));
-        if(reason_code != 0)
-	{
+       // if(reason_code != 0)
+	//{
 		MqttCMInfo("on_disconnect received error\n");
-                //reconnect
-               //mosquitto_disconnect(mosq);
 		//Resetting to trigger sync on wan_restore
+		reconnectFlag = 1;
 		subscribeFlag = 0;
 		bootupsync = 0;
+		mqinit = 0;
+		//mosquitto_destroy(mosq);
+		mosquitto_lib_cleanup();
 		return;
-        }
+       // }
 }
 /* Enables rbus ERROR level logs in mqttcm. Modify RBUS_LOG_ERROR check if more debug logs are needed from rbus. */
 void rbus_log_handler(
