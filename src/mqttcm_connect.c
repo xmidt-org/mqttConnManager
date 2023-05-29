@@ -98,7 +98,7 @@ void valueChangeCheck(char *valueStored, char *valueChanged)
 
 		if(strcmp(valueStored, valueChanged)!= 0)
 		{
-			valueChangeFlag=1;
+			valueChangeFlag = 1;
 		}
 	}
 }
@@ -427,6 +427,7 @@ void on_connect(struct mosquitto *mosq, void *obj, int reason_code, int flag, co
 
 	if(reconnectFlag)
 	{
+		valueChangeFlag = 0;
 		while(1)
 		{
 			if(mqtt_subscribe() != 0)
