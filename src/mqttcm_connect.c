@@ -697,7 +697,7 @@ void publish_notify_mqtt(char *pub_topic, void *payload, ssize_t len)
 
 	MqttCMInfo("uuidv1 generated is %s\n", uuid_str);
 
-	int ret = mosquitto_property_add_string_pair(&props, MQTT_PROP_USER_PROPERTY, "UUIDv1", uuid_str);
+	int ret = mosquitto_property_add_string_pair(&props, MQTT_PROP_USER_PROPERTY, "uuid", uuid_str);
 
 	if(ret != MOSQ_ERR_SUCCESS)
 	{
