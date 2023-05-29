@@ -107,7 +107,7 @@ pthread_mutex_t *get_global_mqtt_mut(void);
 int regMqttDataModel();
 void execute_mqtt_script(char *name);
 int getHostIPFromInterface(char *interface, char **ip);
-void mqtt_subscribe();
+int mqtt_subscribe();
 int mqttCMRbusInit();
 bool isRbusEnabled();
 void mqttCMRbus_Uninit();

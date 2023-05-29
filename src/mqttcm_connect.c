@@ -427,8 +427,14 @@ void on_connect(struct mosquitto *mosq, void *obj, int reason_code, int flag, co
 
 	if(reconnectFlag)
 	{
-		mqtt_subscribe();
-		reconnectFlag = 0;
+		while(1)
+		{
+			if(mqtt_subscribe() != 0)
+			{
+				reconnectFlag = 0;
+				break;
+			}
+		}
 	}
 
 }
@@ -1477,7 +1483,7 @@ rbusError_t MqttPortGetHandler(rbusHandle_t handle, rbusProperty_t property, rbu
     return RBUS_ERROR_SUCCESS;
 }
 
-void mqtt_subscribe()
+int mqtt_subscribe()
 {
 	int rc;
 	char topic[256] = { 0 };
@@ -1496,12 +1502,12 @@ void mqtt_subscribe()
 			if(rc != MOSQ_ERR_SUCCESS)
 			{
 				MqttCMError("Error subscribing: %s\n", mosquitto_strerror(rc));
-				mosquitto_disconnect(mosq);
 			}
 			else
 			{
 				MqttCMInfo("subscribe to topic %s success\n", topic);
 				subscribeFlag = 1;
+				return 0;
 			}
 		}
 		else
@@ -1509,6 +1515,7 @@ void mqtt_subscribe()
 			MqttCMError("Failed to subscribe as clientId is NULL\n");
 		}
 	}
+	return 1;
 }
 
 int regMqttDataModel()
