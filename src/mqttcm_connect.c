@@ -127,6 +127,7 @@ void mosquittoTriggerDisconnect()
 	{
 		MqttCMInfo("Reconnect is in progress, so skipping this reconnect request\n");
 	}
+	valueChangeFlag = 0;
 }
 
 //Rbus registration with mqttCM
@@ -427,7 +428,6 @@ void on_connect(struct mosquitto *mosq, void *obj, int reason_code, int flag, co
 
 	if(reconnectFlag)
 	{
-		valueChangeFlag = 0;
 		while(1)
 		{
 			if(mqtt_subscribe() != 0)
