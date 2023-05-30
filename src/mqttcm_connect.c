@@ -174,17 +174,6 @@ bool mqttCMConnectBroker()
 
 	if (clientId !=NULL)
 	{
-		MqttCMInfo("Port fetched from TR181 is %s\n", Port);
-		if(Port !=NULL && strlen(Port) > 0)
-		{
-			port = atoi(Port);
-		}
-		else
-		{
-			port = MQTT_PORT;
-		}
-		MqttCMInfo("port int %d\n", port);
-
 		while(1)
 		{
 			username = clientId;
@@ -302,6 +291,18 @@ bool mqttCMConnectBroker()
 					}
 					while(1)
 					{
+
+						MqttCMInfo("Port fetched from TR181 is %s\n", Port);
+						if(Port !=NULL && strlen(Port) > 0)
+						{
+							port = atoi(Port);
+						}
+						else
+						{
+							port = MQTT_PORT;
+						}
+						MqttCMInfo("port int %d\n", port);
+
 						rc = mosquitto_connect_bind_v5(mosq, broker, port, KEEPALIVE, hostip, NULL);
 
 						MqttCMInfo("mosquitto_connect_bind rc %d\n", rc);
