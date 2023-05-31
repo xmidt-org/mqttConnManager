@@ -24,7 +24,6 @@
 
 struct mosquitto *mosq = NULL;
 static bool isRbus = false ;
-static int subscribeFlag = 0;
 static char* locationId = NULL;
 static char* clientId = NULL;
 static char* Port =NULL;
@@ -432,7 +431,20 @@ void on_connect(struct mosquitto *mosq, void *obj, int reason_code, int flag, co
 	{
 		while(1)
 		{
-			if(mqtt_subscribe() != 0)
+			int subscribeSuccessFlag = 1;
+			comp_topic_name_t* temp = g_head;
+
+			while (temp != NULL)
+			{
+				if(mqtt_subscribe(temp->topic) != 0)
+				{
+					subscribeSuccessFlag = 0;
+					break;
+				}
+				temp = temp->next;
+			}
+
+			if(subscribeSuccessFlag)
 			{
 				reconnectFlag = 0;
 				break;
@@ -583,8 +595,15 @@ void on_disconnect(struct mosquitto *mosq, void *obj, int reason_code, const mos
 
 	//Resetting to trigger sync on wan_restore
 	reconnectFlag = 1;
-	subscribeFlag = 0;
 	mqinit = 0;
+
+	comp_topic_name_t* temp = g_head;
+	while (temp != NULL)
+	{
+		temp->subscribeOnFlag = 0;
+		MqttCMInfo("%s component is unsubscribed from topic %s\n", temp->compName, temp->topic);
+		temp = temp->next;
+	}
 }
 
 /* Enables rbus ERROR level logs in mqttcm. Modify RBUS_LOG_ERROR check if more debug logs are needed from rbus. */
@@ -1533,11 +1552,40 @@ rbusError_t MqttPortGetHandler(rbusHandle_t handle, rbusProperty_t property, rbu
     return RBUS_ERROR_SUCCESS;
 }
 
+int isSubscribeNeeded(char *topic)
+{
+	comp_topic_name_t* temp = g_head;
+	while (temp != NULL)
+	{
+		if(strcmp(temp->compName, topic) == 0)
+		{
+			if(temp->subscribeOnFlag == 0)
+			{
+				MqttCMInfo("%s component needs to be subscribed\n", temp->compName);
+				return 1;
+			}
+			else
+			{
+				return 0;
+			}
+		}
+		temp = temp->next;
+	}
+	MqttCMInfo("Component is not in the list\n");
+	return 2;
+}
+
 int mqtt_subscribe(char *topic)
 {
 	int rc;
 	if(topic != NULL)
 	{
+		if(isSubscribeNeeded(topic) == 0)
+		{
+			MqttCMInfo("Component is already subscribed\n");
+			return 0;
+		}
+
 		if(AddToSubscriptionList(SUBSCRIBE_WEBCONFIG ,topic))
 		{
 			rc = mosquitto_subscribe(mosq, NULL, topic, 1);
@@ -1545,14 +1593,15 @@ int mqtt_subscribe(char *topic)
 			if(rc != MOSQ_ERR_SUCCESS)
 			{
 				MqttCMError("Error subscribing: %s\n", mosquitto_strerror(rc));
-				mosquitto_disconnect(mosq);
+				return 1;
 			}
+
 			MqttCMDebug("Component is subscribed and added to the list\n");
 			return 0;
 		}
 		else
 		{
-			MqttCMInfo("Component is already subscribed\n");
+			MqttCMInfo("Error Occured in AddToSubscriptionList\n");
 		}
 	}
 	else
@@ -1562,67 +1611,40 @@ int mqtt_subscribe(char *topic)
 	return 1;
 }
 
-//Check if component name is already in the linked list
-bool CompAlreadyInList(char *comp)
-{
-	
-	MqttCMInfo("Inside CompAlreadyInList functtion\n");
-	comp_topic_name_t *current = g_head;
-	bool compExists = false;
-	while (current != NULL)
-	{
-		if (comp !=NULL && (strcmp(current->compName, comp) == 0))
-		{
-			//component is found in the list
-			MqttCMInfo("Component found in the list, the component name is %s and topic is %s\n", current->compName, current->topic);
-			compExists = true;
-			return compExists;
-		}
-	}
-	MqttCMDebug("comp name is not present returning false\n");
-	return compExists;
-}
-
 int AddToSubscriptionList(char *compName, char *topic)
 {
 	MqttCMInfo("Inside createComponentSubscribeTopicList functtion\n");
 	//check if component is already present in the linked list
-	MqttCMInfo("The component name is %s and the topis is %s\n", compName, topic);
-	if(CompAlreadyInList(compName))
-	{
-		MqttCMInfo("Component already exist\n");
-		return 0;
-	}
+	MqttCMInfo("The component name is %s and the topic is %s\n", compName, topic);
+
 	//if component not present then add it to the list
-	else
+	comp_topic_name_t* newNode = (comp_topic_name_t*)malloc(sizeof(comp_topic_name_t));
+	if(newNode)
 	{
-		comp_topic_name_t* newNode = (comp_topic_name_t*)malloc(sizeof(comp_topic_name_t));
-		if(newNode)
+		memset(newNode, 0, sizeof(comp_topic_name_t) );
+		strncpy(newNode->compName, compName, sizeof(newNode->compName) - 1);
+		strncpy(newNode->topic, topic, sizeof(newNode->topic) - 1);
+		newNode->next = NULL;
+		if(g_head == NULL)
 		{
-			memset(newNode, 0, sizeof(comp_topic_name_t) );
-			strncpy(newNode->compName, compName, sizeof(newNode->compName) - 1);
-			strncpy(newNode->topic, topic, sizeof(newNode->topic) - 1);
-			newNode->next = NULL;
-			if(g_head == NULL) 
-			{
-				g_head = newNode;
-			}
-			else
-			{
-				comp_topic_name_t* current = g_head;
-				while (current->next != NULL)
-				{
-					current = current->next;
-				}
-				current->next = newNode;
-			}
+			g_head = newNode;
 		}
 		else
 		{
-			MqttCMError("Memory allocation failed\n");
+			comp_topic_name_t* current = g_head;
+			while (current->next != NULL)
+			{
+				current = current->next;
+			}
+			current->next = newNode;
 		}
-
 	}
+	else
+	{
+		MqttCMError("Memory allocation failed\n");
+		return 0;
+	}
+
 	return 1;
 }
 

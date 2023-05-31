@@ -90,6 +90,7 @@ typedef struct comp_topic_name
 {
 	char compName[32];
 	char topic[64];
+	int subscribeOnFlag;
 	struct comp_topic_name *next;
 } comp_topic_name_t;
 
@@ -117,7 +118,7 @@ pthread_mutex_t *get_global_mqtt_mut(void);
 int regMqttDataModel();
 void execute_mqtt_script(char *name);
 int getHostIPFromInterface(char *interface, char **ip);
-int mqtt_subscribe();
+int mqtt_subscribe(char *topic);
 int mqttCMRbusInit();
 bool isRbusEnabled();
 void mqttCMRbus_Uninit();
