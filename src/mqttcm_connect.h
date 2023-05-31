@@ -66,6 +66,7 @@
 #define MQTT_RETRY_ERR -1
 #define MQTT_RETRY_SHUTDOWN 1
 #define MQTT_DELAY_TAKEN 0
+#define SUBSCRIBE_WEBCONFIG "Webconfig"
 #define MQTT_SUBSCRIBE_TOPIC_PREFIX "x/to/"
 #define MQTT_PUBLISH_GET_TOPIC_PREFIX "x/fr/get/chi/"
 #define MQTT_PUBLISH_NOTIFY_TOPIC_PREFIX "x/fr/poke/chi/"
@@ -85,6 +86,15 @@ typedef struct {
   int delay;
 } mqtt_timer_t;
 
+typedef struct comp_topic_name
+{
+	char compName[32];
+	char topic[64];
+	struct comp_topic_name *next;
+} comp_topic_name_t;
+
+int AddToSubscriptionList(char *compName,char *topic);
+const char *getComponentFromTopicName(char *topic);
 void on_connect(struct mosquitto *mosq, void *obj, int reason_code, int flag, const mosquitto_property *props);
 void on_disconnect(struct mosquitto *mosq, void *obj, int reason_code, const mosquitto_property *props);
 void on_subscribe(struct mosquitto *mosq, void *obj, int mid, int qos_count, const int *granted_qos, const mosquitto_property *props);
