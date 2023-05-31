@@ -436,7 +436,7 @@ void on_connect(struct mosquitto *mosq, void *obj, int reason_code, int flag, co
 
 			while (temp != NULL)
 			{
-				if(mqtt_subscribe(temp->topic) != 0)
+				if(mqtt_subscribe(temp->compName, temp->topic) != 0)
 				{
 					subscribeSuccessFlag = 0;
 					break;
@@ -1550,12 +1550,35 @@ rbusError_t MqttPortGetHandler(rbusHandle_t handle, rbusProperty_t property, rbu
     return RBUS_ERROR_SUCCESS;
 }
 
+int isSubscribeNeeded(char *compname)
+{
+	comp_topic_name_t* temp = g_head;
+	while (temp != NULL)
+	{
+		if(strcmp(temp->compName, compname) == 0)
+		{
+			if(temp->subscribeOnFlag == 0)
+			{
+				MqttCMInfo("%s component needs to be subscribed\n", temp->compName);
+				return 1;
+			}
+			else
+			{
+				return 0;
+			}
+		}
+		temp = temp->next;
+	}
+	MqttCMInfo("Component is not in the list\n");
+	return 2;
+}
+
 int mqtt_subscribe(char *comp, char *topic)
 {
 	int rc;
 	if(topic != NULL && comp !=NULL)
 	{
-		if(isSubscribeNeeded(topic) == 0)
+		if(isSubscribeNeeded(comp) == 0)
 		{
 			MqttCMInfo("Component is already subscribed\n");
 			return 0;
@@ -1598,6 +1621,7 @@ int AddToSubscriptionList(char *compName, char *topic)
 		memset(newNode, 0, sizeof(comp_topic_name_t) );
 		strncpy(newNode->compName, compName, sizeof(newNode->compName) - 1);
 		strncpy(newNode->topic, topic, sizeof(newNode->topic) - 1);
+		newNode->subscribeOnFlag = 1;
 		newNode->next = NULL;
 		if(g_head == NULL)
 		{
