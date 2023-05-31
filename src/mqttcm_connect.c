@@ -523,7 +523,7 @@ void on_message(struct mosquitto *mosq, void *obj, const struct mosquitto_messag
 					const char *CompName = getComponentFromTopicName(topic_name);
 					if(CompName != NULL)
 					{
-						MqttCMInfo("The component received after getComponentFromTopicName function is %s\n",CompName);
+						MqttCMInfo("The component name fetched from subscribeList for the received topic is %s\n",CompName);
 						if(strcmp(CompName,SUBSCRIBE_WEBCONFIG) == 0)
 						{
 							//send on_message callback event to webconfig via rbus.
@@ -564,7 +564,6 @@ void on_message(struct mosquitto *mosq, void *obj, const struct mosquitto_messag
 
 const char *getComponentFromTopicName(char *topic)
 {
-	MqttCMDebug("Get companent name from the topic\n");
 	comp_topic_name_t* current = g_head;
 	while (current != NULL)
 	{
@@ -1211,9 +1210,8 @@ rbusError_t MqttSubscribeSetHandler(rbusHandle_t handle, rbusProperty_t prop, rb
 					MqttCMError("Invalid value to set\n");
 					return RBUS_ERROR_INVALID_INPUT;
 				}
-				MqttCMInfo("mqtt subscribe %s\n", subscribe);
-                                if(topic[0] !='\0' && strlen(topic) > 0)
-                                	mqtt_subscribe(topic);
+                                if((topic[0] !='\0') && (strlen(topic) > 0) && (subscribe != NULL) )
+                                	mqtt_subscribe(subscribe, topic);
 	       			MqttCMDebug("mqtt_subscribe done\n");
 			}
 		} else {
@@ -1552,33 +1550,10 @@ rbusError_t MqttPortGetHandler(rbusHandle_t handle, rbusProperty_t property, rbu
     return RBUS_ERROR_SUCCESS;
 }
 
-int isSubscribeNeeded(char *topic)
-{
-	comp_topic_name_t* temp = g_head;
-	while (temp != NULL)
-	{
-		if(strcmp(temp->compName, topic) == 0)
-		{
-			if(temp->subscribeOnFlag == 0)
-			{
-				MqttCMInfo("%s component needs to be subscribed\n", temp->compName);
-				return 1;
-			}
-			else
-			{
-				return 0;
-			}
-		}
-		temp = temp->next;
-	}
-	MqttCMInfo("Component is not in the list\n");
-	return 2;
-}
-
-int mqtt_subscribe(char *topic)
+int mqtt_subscribe(char *comp, char *topic)
 {
 	int rc;
-	if(topic != NULL)
+	if(topic != NULL && comp !=NULL)
 	{
 		if(isSubscribeNeeded(topic) == 0)
 		{
@@ -1586,7 +1561,7 @@ int mqtt_subscribe(char *topic)
 			return 0;
 		}
 
-		if(AddToSubscriptionList(SUBSCRIBE_WEBCONFIG ,topic))
+		if(AddToSubscriptionList(comp ,topic))
 		{
 			rc = mosquitto_subscribe(mosq, NULL, topic, 1);
 
@@ -1613,7 +1588,6 @@ int mqtt_subscribe(char *topic)
 
 int AddToSubscriptionList(char *compName, char *topic)
 {
-	MqttCMInfo("Inside createComponentSubscribeTopicList functtion\n");
 	//check if component is already present in the linked list
 	MqttCMInfo("The component name is %s and the topic is %s\n", compName, topic);
 

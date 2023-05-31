@@ -66,7 +66,6 @@
 #define MQTT_RETRY_ERR -1
 #define MQTT_RETRY_SHUTDOWN 1
 #define MQTT_DELAY_TAKEN 0
-#define SUBSCRIBE_WEBCONFIG "Webconfig"
 #define MQTT_SUBSCRIBE_TOPIC_PREFIX "x/to/"
 #define MQTT_PUBLISH_GET_TOPIC_PREFIX "x/fr/get/chi/"
 #define MQTT_PUBLISH_NOTIFY_TOPIC_PREFIX "x/fr/poke/chi/"
@@ -118,7 +117,7 @@ pthread_mutex_t *get_global_mqtt_mut(void);
 int regMqttDataModel();
 void execute_mqtt_script(char *name);
 int getHostIPFromInterface(char *interface, char **ip);
-int mqtt_subscribe(char *topic);
+int mqtt_subscribe(char *comp, char *topic);
 int mqttCMRbusInit();
 bool isRbusEnabled();
 void mqttCMRbus_Uninit();
