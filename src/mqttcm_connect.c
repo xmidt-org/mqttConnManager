@@ -1614,6 +1614,20 @@ int AddToSubscriptionList(char *compName, char *topic)
 	//check if component is already present in the linked list
 	MqttCMInfo("The component name is %s and the topic is %s\n", compName, topic);
 
+	if(isSubscribeNeeded(compName) == 1)
+	{
+		comp_topic_name_t* temp = g_head;
+		while (temp != NULL)
+		{
+			if(strcmp(compName, temp->compName))
+			{
+				temp->subscribeOnFlag = 1;
+				break;
+			}
+			temp = temp->next;
+		}
+		return 1;
+	}
 	//if component not present then add it to the list
 	comp_topic_name_t* newNode = (comp_topic_name_t*)malloc(sizeof(comp_topic_name_t));
 	if(newNode)
