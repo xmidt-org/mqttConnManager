@@ -34,7 +34,6 @@ static void sig_handler(int sig);
 
 pthread_mutex_t mqttcm_mut= PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t  mqttcm_con= PTHREAD_COND_INITIALIZER;
-
 /*----------------------------------------------------------------------------*/
 /*                             External Functions                             */
 /*----------------------------------------------------------------------------*/
@@ -70,7 +69,13 @@ int main()
 			MqttCMInfo("Registering mqtt CM parameters\n");
 			regMqttDataModel();
 			MqttCMInfo("Proceed to mqtt connection with default configuration\n");
-			mqttCMConnectBroker();
+			do
+			{
+				mqttCMConnectBroker();
+				MqttCMInfo("Reconnectflag value is %d\n", isReconnectNeeded());
+
+			}while(isReconnectNeeded());
+
 			MqttCMInfo("mqttCMConnectBroker done\n");
 		}
 		else

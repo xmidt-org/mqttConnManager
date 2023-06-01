@@ -89,6 +89,7 @@ typedef struct comp_topic_name
 {
 	char compName[32];
 	char topic[64];
+	int subscribeOnFlag;
 	struct comp_topic_name *next;
 } comp_topic_name_t;
 
@@ -99,6 +100,7 @@ void on_disconnect(struct mosquitto *mosq, void *obj, int reason_code, const mos
 void on_subscribe(struct mosquitto *mosq, void *obj, int mid, int qos_count, const int *granted_qos, const mosquitto_property *props);
 void on_message(struct mosquitto *mosq, void *obj, const struct mosquitto_message *msg, const mosquitto_property *props);
 void on_publish(struct mosquitto *mosq, void *obj, int mid, int reason_code, const mosquitto_property *props);
+int isReconnectNeeded();
 
 int writeToDBFile(char *db_file_path, char *data, size_t size);
 void get_from_file(char *key, char **val, char *filepath);
@@ -115,7 +117,7 @@ pthread_mutex_t *get_global_mqtt_mut(void);
 int regMqttDataModel();
 void execute_mqtt_script(char *name);
 int getHostIPFromInterface(char *interface, char **ip);
-void mqtt_subscribe(char *comp, char *topic);
+int mqtt_subscribe(char *comp, char *topic);
 int mqttCMRbusInit();
 bool isRbusEnabled();
 void mqttCMRbus_Uninit();

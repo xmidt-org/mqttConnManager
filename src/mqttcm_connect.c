@@ -24,8 +24,6 @@
 
 struct mosquitto *mosq = NULL;
 static bool isRbus = false ;
-static int bootupsync = 0;
-static int subscribeFlag = 0;
 static char* locationId = NULL;
 static char* clientId = NULL;
 static char* Port =NULL;
@@ -36,6 +34,8 @@ static int mqinit = 0;
 static rbusHandle_t rbus_handle;
 static char* mqttdata = NULL;
 static int broker_connect = 0;
+static int reconnectFlag = 0;
+static int valueChangeFlag= 0;
 
 pthread_mutex_t mqtt_retry_mut=PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t mqtt_retry_con=PTHREAD_COND_INITIALIZER;
@@ -86,6 +86,23 @@ pthread_mutex_t *get_global_mqtt_mut(void)
     return &mqtt_mut;
 }
 
+int isReconnectNeeded()
+{
+	return reconnectFlag;
+}
+
+void valueChangeCheck(char *valueStored, char *valueChanged)
+{
+	if(valueStored != NULL && valueChanged != NULL)
+	{
+
+		if(strcmp(valueStored, valueChanged)!= 0)
+		{
+			valueChangeFlag = 1;
+		}
+	}
+}
+
 bool isRbusEnabled() 
 {
 	if(RBUS_ENABLED == rbus_checkStatus())
@@ -98,6 +115,19 @@ bool isRbusEnabled()
 	}
 	MqttCMInfo("MQTTCM RBUS mode active status = %s\n", isRbus ? "true":"false");
 	return isRbus;
+}
+
+void mosquittoTriggerDisconnect()
+{
+	if(reconnectFlag!=1)
+	{
+		mosquitto_disconnect(mosq);
+	}
+	else
+	{
+		MqttCMInfo("Reconnect is in progress, so skipping this reconnect request\n");
+	}
+	valueChangeFlag = 0;
 }
 
 //Rbus registration with mqttCM
@@ -144,17 +174,6 @@ bool mqttCMConnectBroker()
 
 	if (clientId !=NULL)
 	{
-		MqttCMInfo("Port fetched from TR181 is %s\n", Port);
-		if(Port !=NULL && strlen(Port) > 0)
-		{
-			port = atoi(Port);
-		}
-		else
-		{
-			port = MQTT_PORT;
-		}
-		MqttCMInfo("port int %d\n", port);
-
 		while(1)
 		{
 			username = clientId;
@@ -272,6 +291,18 @@ bool mqttCMConnectBroker()
 					}
 					while(1)
 					{
+
+						MqttCMInfo("Port fetched from TR181 is %s\n", Port);
+						if(Port !=NULL && strlen(Port) > 0)
+						{
+							port = atoi(Port);
+						}
+						else
+						{
+							port = MQTT_PORT;
+						}
+						MqttCMInfo("port int %d\n", port);
+
 						rc = mosquitto_connect_bind_v5(mosq, broker, port, KEEPALIVE, hostip, NULL);
 
 						MqttCMInfo("mosquitto_connect_bind rc %d\n", rc);
@@ -310,6 +341,8 @@ bool mqttCMConnectBroker()
 					}
 					else
 					{
+						mosquitto_destroy(mosq);
+						mosquitto_lib_cleanup();
 						MqttCMDebug("after loop rc is %d\n", rc);
 						break;
 					}
@@ -394,6 +427,31 @@ void on_connect(struct mosquitto *mosq, void *obj, int reason_code, int flag, co
 	MqttCMInfo("on_connect: success. broker_connect set to 1\n");
 	broker_connect = 1;
 
+	if(reconnectFlag)
+	{
+		while(1)
+		{
+			int subscribeSuccessFlag = 1;
+			comp_topic_name_t* temp = g_head;
+
+			while (temp != NULL)
+			{
+				if(mqtt_subscribe(temp->compName, temp->topic) != 0)
+				{
+					subscribeSuccessFlag = 0;
+					break;
+				}
+				temp = temp->next;
+			}
+
+			if(subscribeSuccessFlag)
+			{
+				reconnectFlag = 0;
+				break;
+			}
+		}
+	}
+
 }
 
 // callback called when the broker sends a SUBACK in response to a SUBSCRIBE.
@@ -469,6 +527,7 @@ void on_message(struct mosquitto *mosq, void *obj, const struct mosquitto_messag
 						if(strcmp(CompName,SUBSCRIBE_WEBCONFIG) == 0)
 						{
 							//send on_message callback event to webconfig via rbus.
+							MqttCMDebug("Before sendRusEventWebcfgOnMessage funciton\n");
 							sendRbusEventWebcfgOnMessage(mqttdata, dataSize);
 						}
 						else
@@ -532,17 +591,20 @@ void on_publish(struct mosquitto *mosq, void *obj, int mid, int reason_code, con
 void on_disconnect(struct mosquitto *mosq, void *obj, int reason_code, const mosquitto_property *props)
 {
         MqttCMInfo("on_disconnect: reason_code %d %s\n", reason_code, mosquitto_reason_string(reason_code));
-        if(reason_code != 0)
+
+	//Resetting to trigger sync on wan_restore
+	reconnectFlag = 1;
+	mqinit = 0;
+
+	comp_topic_name_t* temp = g_head;
+	while (temp != NULL)
 	{
-		MqttCMInfo("on_disconnect received error\n");
-                //reconnect
-               //mosquitto_disconnect(mosq);
-		//Resetting to trigger sync on wan_restore
-		subscribeFlag = 0;
-		bootupsync = 0;
-		return;
-        }
+		temp->subscribeOnFlag = 0;
+		MqttCMInfo("%s component is unsubscribed from topic %s\n", temp->compName, temp->topic);
+		temp = temp->next;
+	}
 }
+
 /* Enables rbus ERROR level logs in mqttcm. Modify RBUS_LOG_ERROR check if more debug logs are needed from rbus. */
 void rbus_log_handler(
     rbusLogLevel level,
@@ -694,7 +756,7 @@ void publish_notify_mqtt(char *pub_topic, void *payload, ssize_t len)
 
 	MqttCMInfo("uuidv1 generated is %s\n", uuid_str);
 
-	int ret = mosquitto_property_add_string_pair(&props, MQTT_PROP_USER_PROPERTY, "UUIDv1", uuid_str);
+	int ret = mosquitto_property_add_string_pair(&props, MQTT_PROP_USER_PROPERTY, "uuid", uuid_str);
 
 	if(ret != MOSQ_ERR_SUCCESS)
 	{
@@ -879,6 +941,7 @@ rbusError_t MqttLocationIdSetHandler(rbusHandle_t handle, rbusProperty_t prop, r
 				MqttCMInfo("Call datamodel function  with data %s\n", data);
 
 				if(locationId) {
+					valueChangeCheck(locationId, data);
 					free(locationId);
 					locationId = NULL;
 				}
@@ -896,6 +959,10 @@ rbusError_t MqttLocationIdSetHandler(rbusHandle_t handle, rbusProperty_t prop, r
 					MqttCMInfo("psm_set success ret %d for parameter %s and value %s\n", retPsmSet, paramName, locationId);
 				}
 				validateForMqttInit();
+				if(valueChangeFlag)
+				{
+					mosquittoTriggerDisconnect();
+				}
 			}
 		} else {
 			MqttCMError("Unexpected value type for property %s\n", paramName);
@@ -936,6 +1003,7 @@ rbusError_t MqttBrokerSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusS
 				MqttCMInfo("Call datamodel function  with data %s\n", data);
 
 				if(broker) {
+					valueChangeCheck(broker, data);
 					free(broker);
 					broker= NULL;
 				}
@@ -953,6 +1021,10 @@ rbusError_t MqttBrokerSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusS
 					MqttCMInfo("psm_set success ret %d for parameter %s and value %s\n", retPsmSet, paramName, broker);
 				}
 				validateForMqttInit();
+				if(valueChangeFlag)
+				{
+					mosquittoTriggerDisconnect();
+				}
 			}
 		} else {
 			MqttCMError("Unexpected value type for property %s\n", paramName);
@@ -993,6 +1065,7 @@ rbusError_t MqttPortSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSet
 				MqttCMInfo("Call datamodel function  with data %s\n", data);
 
 				if(Port) {
+					valueChangeCheck(Port, data);
 					free(Port);
 					Port = NULL;
 				}
@@ -1010,6 +1083,10 @@ rbusError_t MqttPortSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSet
 					MqttCMInfo("psm_set success ret %d for parameter %s and value %s\n", retPsmSet, paramName, Port);
 				}
 				validateForMqttInit();
+				if(valueChangeFlag)
+				{
+					mosquittoTriggerDisconnect();
+				}
 			}
 		} else {
 			MqttCMError("Unexpected value type for property %s\n", paramName);
@@ -1473,11 +1550,40 @@ rbusError_t MqttPortGetHandler(rbusHandle_t handle, rbusProperty_t property, rbu
     return RBUS_ERROR_SUCCESS;
 }
 
-void mqtt_subscribe(char *comp, char *topic)
+int isSubscribeNeeded(char *compname)
+{
+	comp_topic_name_t* temp = g_head;
+	while (temp != NULL)
+	{
+		if(strcmp(temp->compName, compname) == 0)
+		{
+			if(temp->subscribeOnFlag == 0)
+			{
+				MqttCMInfo("%s component needs to be subscribed\n", temp->compName);
+				return 1;
+			}
+			else
+			{
+				return 0;
+			}
+		}
+		temp = temp->next;
+	}
+	MqttCMInfo("Component is not in the list\n");
+	return 2;
+}
+
+int mqtt_subscribe(char *comp, char *topic)
 {
 	int rc;
 	if(topic != NULL && comp !=NULL)
 	{
+		if(isSubscribeNeeded(comp) == 0)
+		{
+			MqttCMInfo("Component is already subscribed\n");
+			return 0;
+		}
+
 		if(AddToSubscriptionList(comp ,topic))
 		{
 			rc = mosquitto_subscribe(mosq, NULL, topic, 1);
@@ -1485,79 +1591,72 @@ void mqtt_subscribe(char *comp, char *topic)
 			if(rc != MOSQ_ERR_SUCCESS)
 			{
 				MqttCMError("Error subscribing: %s\n", mosquitto_strerror(rc));
-				mosquitto_disconnect(mosq);
+				return 1;
 			}
+
 			MqttCMDebug("Component is subscribed and added to the list\n");
+			return 0;
 		}
 		else
 		{
-			MqttCMInfo("Component is already subscribed\n");
+			MqttCMInfo("Error Occured in AddToSubscriptionList\n");
 		}
 	}
 	else
 	{
 		MqttCMError("Failed to subscribe as topic is NULL\n");
 	}
-}
-
-//Check if component name is already in the linked list
-bool CompAlreadyInList(char *comp)
-{	
-	comp_topic_name_t *current = g_head;
-	bool compExists = false;
-	while (current != NULL)
-	{
-		if (comp !=NULL && (strcmp(current->compName, comp) == 0))
-		{
-			//component is found in the list
-			MqttCMInfo("Component found in the list, the component name is %s and topic is %s\n", current->compName, current->topic);
-			compExists = true;
-			return compExists;
-		}
-	}
-	MqttCMDebug("comp name is not present returning false\n");
-	return compExists;
+	return 1;
 }
 
 int AddToSubscriptionList(char *compName, char *topic)
 {
 	//check if component is already present in the linked list
-	MqttCMInfo("The component name is %s and the topis is %s\n", compName, topic);
-	if(CompAlreadyInList(compName))
+	MqttCMInfo("The component name is %s and the topic is %s\n", compName, topic);
+
+	if(isSubscribeNeeded(compName) == 1)
 	{
-		MqttCMInfo("Component already exist\n");
-		return 0;
+		comp_topic_name_t* temp = g_head;
+		while (temp != NULL)
+		{
+			if(strcmp(compName, temp->compName))
+			{
+				temp->subscribeOnFlag = 1;
+				break;
+			}
+			temp = temp->next;
+		}
+		return 1;
 	}
 	//if component not present then add it to the list
-	else
+	comp_topic_name_t* newNode = (comp_topic_name_t*)malloc(sizeof(comp_topic_name_t));
+	if(newNode)
 	{
-		comp_topic_name_t* newNode = (comp_topic_name_t*)malloc(sizeof(comp_topic_name_t));
-		if(newNode)
+		memset(newNode, 0, sizeof(comp_topic_name_t) );
+		strncpy(newNode->compName, compName, sizeof(newNode->compName) - 1);
+		strncpy(newNode->topic, topic, sizeof(newNode->topic) - 1);
+		newNode->subscribeOnFlag = 1;
+		newNode->next = NULL;
+		if(g_head == NULL)
 		{
-			memset(newNode, 0, sizeof(comp_topic_name_t) );
-			strncpy(newNode->compName, compName, sizeof(newNode->compName) - 1);
-			strncpy(newNode->topic, topic, sizeof(newNode->topic) - 1);
-			newNode->next = NULL;
-			if(g_head == NULL) 
-			{
-				g_head = newNode;
-			}
-			else
-			{
-				comp_topic_name_t* current = g_head;
-				while (current->next != NULL)
-				{
-					current = current->next;
-				}
-				current->next = newNode;
-			}
+			g_head = newNode;
 		}
 		else
 		{
-			MqttCMError("Memory allocation failed\n");
+			comp_topic_name_t* current = g_head;
+			while (current->next != NULL)
+			{
+				current = current->next;
+			}
+			current->next = newNode;
 		}
-
 	}
+	else
+	{
+		MqttCMError("Memory allocation failed\n");
+		return 0;
+	}
+
 	return 1;
 }
 

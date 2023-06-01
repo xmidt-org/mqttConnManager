@@ -72,6 +72,8 @@ void sendRbusEventWebcfgOnMessage(char *mqttdata, int dataSize)
 		rbusObject_Init(&dataIn, NULL);
 		rbusObject_SetValue(dataIn, "value", value);
 
+		writeToDBFile("/tmp/mqtt_poke.bin",(char *)mqttdata, dataSize);
+
 		event.name = WEBCFG_MQTT_ONMESSAGE_CALLBACK;
 		event.data = dataIn;
 		event.type = RBUS_EVENT_GENERAL;
