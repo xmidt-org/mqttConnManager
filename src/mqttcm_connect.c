@@ -29,7 +29,6 @@ static char* clientId = NULL;
 static char* Port =NULL;
 static char* broker = NULL;
 static char* connMode = NULL;
-static char* subscribe = NULL;
 static int mqinit = 0;
 static rbusHandle_t rbus_handle;
 static char* mqttdata = NULL;
@@ -1160,64 +1159,66 @@ rbusError_t MqttConnModeSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbu
 	return RBUS_ERROR_SUCCESS;
 }
 
-rbusError_t MqttSubscribeSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSetHandlerOptions_t* opts)
+rbusError_t MqttSubscribeMethodHandler(rbusHandle_t handle, char const* methodName, rbusObject_t inParams, rbusObject_t outParams, rbusMethodAsyncHandle_t asyncHandle)
 {
-	(void) handle;
-	(void) opts;
-	char topic[64] = { 0 };
-	char const* paramName = rbusProperty_GetName(prop);
+	(void)handle;
+        (void)asyncHandle;
+        char *compname_str = NULL, *topic_str = NULL;
 
-	if(strncmp(paramName, MQTT_SUBSCRIBE_PARAM, maxParamLen) != 0)
-	{
-		MqttCMError("Unexpected parameter = %s\n", paramName);
-		return RBUS_ERROR_ELEMENT_DOES_NOT_EXIST;
-	}
+        MqttCMInfo("methodHandler called: %s\n", methodName);
+        //rbusObject_fwrite(inParams, 1, stdout);
+        if(strncmp(methodName, MQTT_SUBSCRIBE_PARAM, maxParamLen) == 0)
+        {
+                rbusValue_t compname = rbusObject_GetValue(inParams, "compname");
+                if(compname)
+                {
+                        if(rbusValue_GetType(compname) == RBUS_STRING)
+                        {
+                                compname_str = (char *) rbusValue_GetString(compname, NULL);
+                                if(compname_str)
+                                {
+                                        MqttCMInfo("compname value recieved is %s\n",compname_str);
+                                }
+                        }
 
-	MqttCMInfo("Parameter name is %s \n", paramName);
-	rbusValueType_t type_t;
-	rbusValue_t paramValue_t = rbusProperty_GetValue(prop);
-	if(paramValue_t) {
-		type_t = rbusValue_GetType(paramValue_t);
-	} else {
-		MqttCMError("Invalid input to set\n");
-		return RBUS_ERROR_INVALID_INPUT;
-	}
-
-	if(strncmp(paramName, MQTT_SUBSCRIBE_PARAM, maxParamLen) == 0) {
-
-		if(type_t == RBUS_STRING) {
-			char* data = rbusValue_ToString(paramValue_t, NULL, 0);
-			if(data) {
-				//this is for webcfg component, follow the same for the new components
-				if(strcmp (data, SUBSCRIBE_WEBCONFIG) == 0)
-				{
-					MqttCMInfo("Call datamodel function  with data %s\n", data);
-
-					if(subscribe) {
-						free(subscribe);
-						subscribe= NULL;
-					}
-					subscribe = strdup(data);
-					free(data);
-					if(clientId !=NULL)
-					{
-						snprintf(topic,MAX_MQTT_LEN,"%s%s", MQTT_SUBSCRIBE_TOPIC_PREFIX,clientId);
-						MqttCMInfo("The value of topic is %s\n",topic);
-					}
-				}
-				else
-				{
-					MqttCMError("Invalid value to set\n");
-					return RBUS_ERROR_INVALID_INPUT;
-				}
-                                if((topic[0] !='\0') && (strlen(topic) > 0) && (subscribe != NULL) )
-                                	mqtt_subscribe(subscribe, topic);
-	       			MqttCMDebug("mqtt_subscribe done\n");
-			}
-		} else {
-			MqttCMError("Unexpected value type for property %s\n", paramName);
+                }
+                else
+                {
+                        MqttCMError("compname is empty\n");
 			return RBUS_ERROR_INVALID_INPUT;
+                }
+
+                rbusValue_t topic = rbusObject_GetValue(inParams, "topic");
+                if(topic)
+                {
+                        if(rbusValue_GetType(topic) == RBUS_STRING)
+                        {
+                                topic_str = (char *) rbusValue_GetString(topic, NULL);
+				MqttCMInfo("topic value received is %s\n",topic_str);
+                        }
+                }
+                else
+                {
+                        MqttCMError("topic is empty\n");
+			return RBUS_ERROR_INVALID_INPUT;
+                }
+
+		if(strcmp (compname_str, SUBSCRIBE_WEBCONFIG) == 0)
+		{
+			mqtt_subscribe(compname_str, topic_str);
 		}
+		else
+                {
+                        MqttCMError("Invalid method value to set\n");
+			return RBUS_ERROR_INVALID_INPUT;
+                }
+		MqttCMDebug("mqtt_subscribe done\n");
+
+	}
+	else
+	{
+		MqttCMError("Unexpected value type for property %s\n", methodName);
+		return RBUS_ERROR_INVALID_INPUT;
 	}
 	return RBUS_ERROR_SUCCESS;
 }
@@ -1669,7 +1670,7 @@ int regMqttDataModel()
 		{MQTT_LOCATIONID_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {MqttLocationIdGetHandler, MqttLocationIdSetHandler, NULL, NULL, NULL, NULL}},
 		{MQTT_CONNECTMODE_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {MqttConnModeGetHandler, MqttConnModeSetHandler, NULL, NULL, NULL, NULL}},
 		{MQTT_CONNSTATUS_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {MqttConnStatusGetHandler, NULL, NULL, NULL, NULL, NULL}},
-		{MQTT_SUBSCRIBE_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {NULL, MqttSubscribeSetHandler, NULL, NULL, NULL, NULL}},
+                {MQTT_SUBSCRIBE_PARAM, RBUS_ELEMENT_TYPE_METHOD, {NULL, NULL, NULL, NULL, NULL, MqttSubscribeMethodHandler}},
 		{MQTT_PUBLISH_PARAM, RBUS_ELEMENT_TYPE_METHOD, {NULL, NULL, NULL, NULL, NULL, MqttPublishMethodHandler}}
 	};
 
