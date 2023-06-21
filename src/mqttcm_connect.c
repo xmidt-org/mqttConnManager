@@ -775,6 +775,7 @@ void publish_notify_mqtt(char *pub_topic, void *payload, ssize_t len)
 		MqttCMInfo("Publish payload success %d\n", rc);
 	}
 	mosquitto_loop(mosq, 0, 1);
+        mosquitto_property_free_all(&props);
 	MqttCMDebug("Publish mosquitto_loop done\n");
 }
 
@@ -1540,6 +1541,7 @@ rbusError_t MqttPortGetHandler(rbusHandle_t handle, rbusProperty_t property, rbu
 				mqtt_port = (char *)malloc(sizeof(10));
 				snprintf(mqtt_port, 10, "%d",MQTT_PORT);
 				rbusValue_SetString(value, mqtt_port);
+				free(mqtt_port);
 			}
 		}
 	}
