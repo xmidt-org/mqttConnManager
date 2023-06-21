@@ -713,8 +713,8 @@ void mqtt_rand_expiration (int random_num1, int random_num2, mqtt_timer_t *timer
 		ts_delay.tv_sec = mqtt_rand_secs (random_num1, max_secs);
 		ts_delay.tv_nsec = mqtt_rand_nsecs (random_num2);
 	}
-	MqttCMInfo("Waiting max delay %u mqttRetryTime %ld secs %ld usecs\n",
-	max_secs, ts_delay.tv_sec, ts_delay.tv_nsec/1000);
+	MqttCMInfo("Waiting max delay %u mqttRetryTime %lld secs %ld usecs\n",
+	max_secs, (long long) ts_delay.tv_sec, ts_delay.tv_nsec/1000);
 
 	/* Add delay to expire time */
 	mqtt_add_timespec (&ts_delay, ts);
@@ -1271,11 +1271,13 @@ rbusError_t MqttPublishMethodHandler(rbusHandle_t handle, char const* methodName
         if(strncmp(methodName, MQTT_PUBLISH_PARAM, maxParamLen) == 0)
         {
                 rbusValue_t payload = rbusObject_GetValue(inParams, "payload");
+                //MqttCMInfo("Payload after getting value from rbus :%s",payload);
                 if(payload)
                 {
                         if(rbusValue_GetType(payload) == RBUS_STRING)
                         {
                                 payload_str = (char *) rbusValue_GetString(payload, NULL);
+                                MqttCMInfo("Payload after retriving from rbus: %s",payload_str);
                                 if(payload_str)
                                 {
                                         MqttCMInfo("payload value recieved is %s\n",payload_str);

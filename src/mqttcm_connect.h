@@ -37,7 +37,9 @@
 #include <rbus/rbus_object.h>
 #include <rbus/rbus_property.h>
 #include <rbus/rbus_value.h>
+#if ! defined(DEVICE_EXTENDER)
 #include <cimplog.h>
+#endif
 #include <uuid/uuid.h>
 
 #define MQTT_COMPONENT_NAME  "mqttConnManager"
