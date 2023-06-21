@@ -55,7 +55,6 @@ int get_global_shutdown()
 {
 	return 0;
 }
-
 void convertToUppercase(char* deviceId)
 {
 	int j =0;
@@ -368,11 +367,12 @@ bool mqttCMConnectBroker()
 	return rc;
 }
 
-void checkMqttParamSet()
+int checkMqttParamSet()
 {
 	if( !validateForMqttInit())
 	{
 		MqttCMInfo("Validation success for mqtt parameters, proceed to mqtt init\n");
+		return 1;
 	}
 	else
 	{
@@ -380,6 +380,7 @@ void checkMqttParamSet()
 		pthread_cond_wait(get_global_mqtt_cond(), get_global_mqtt_mut());
 		pthread_mutex_unlock(get_global_mqtt_mut());
 		MqttCMInfo("Received mqtt signal proceed to mqtt init\n");
+		return 0;
 	}
 }
 
@@ -402,14 +403,16 @@ int validateForMqttInit()
 			else
 			{
 				MqttCMInfo("All 3 mandatory params locationId, NodeId and broker are not set, waiting..\n");
+				return 1;
 			}
 		}
 		else
 		{
 			MqttCMInfo("All 3 mandatory params locationId, NodeId and broker are not set, waiting..\n");
+			return 1;
 		}
 	}
-	return 1;
+	return 0;
 }
 
 // callback called when the client receives a CONNACK message from the broker
@@ -812,7 +815,7 @@ void get_from_file(char *key, char **val, char *filepath)
         }
 }
 
-void execute_mqtt_script(char *name)
+int execute_mqtt_script(char *name)
 {
     FILE* out = NULL, *file = NULL;
     char command[100] = {'\0'};
@@ -831,13 +834,15 @@ void execute_mqtt_script(char *name)
 
             }
             fclose(file);
-
+	    return 1;
         }
         else
         {
             MqttCMError("File %s open error\n", name);
+	    return 0;
         }
     }
+    return 0;
 }
 
 int getHostIPFromInterface(char *interface, char **ip)
