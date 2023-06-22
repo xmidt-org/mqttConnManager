@@ -51,6 +51,7 @@
 #define SINGLE_CONN_ELEMENTS 7
 #define MAX_BUF_SIZE         255
 #define maxParamLen          128
+#define MQTT_SUBSCRIBER_FILE "/tmp/mqtt_subscriber_list"
 
 #define MQTT_LOCATIONID_PARAM     "Device.X_RDK_MQTT.LocationID"
 #define MQTT_BROKER_PARAM         "Device.X_RDK_MQTT.BrokerURL"
@@ -90,6 +91,7 @@ typedef struct comp_topic_name
 	char compName[32];
 	char topic[64];
 	int subscribeOnFlag;
+	int subscribeId;
 	struct comp_topic_name *next;
 } comp_topic_name_t;
 
@@ -101,6 +103,9 @@ void on_subscribe(struct mosquitto *mosq, void *obj, int mid, int qos_count, con
 void on_message(struct mosquitto *mosq, void *obj, const struct mosquitto_message *msg, const mosquitto_property *props);
 void on_publish(struct mosquitto *mosq, void *obj, int mid, int reason_code, const mosquitto_property *props);
 int isReconnectNeeded();
+int GetTopicFromFile();
+char* GetTopicFromSubcribeId(int subscribeId);
+void printList();
 
 int writeToDBFile(char *db_file_path, char *data, size_t size);
 void get_from_file(char *key, char **val, char *filepath);
