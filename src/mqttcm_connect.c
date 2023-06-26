@@ -429,12 +429,12 @@ void on_connect(struct mosquitto *mosq, void *obj, int reason_code, int flag, co
 	//For Mqtt reconnection state use in-cache subscribe list
 	if(reconnectFlag)
 	{
-		printList();
+		//printList();
 		comp_topic_name_t* temp = g_head;
 
 		while (temp != NULL)
 		{
-			MqttCMInfo("Inside mqtt subscribe of %s\n", temp->compName);
+			MqttCMDebug("Inside mqtt subscribe of %s\n", temp->compName);
 			mqtt_subscribe(temp->compName, temp->topic);
 			temp = temp->next;
 		}
@@ -446,12 +446,12 @@ void on_connect(struct mosquitto *mosq, void *obj, int reason_code, int flag, co
 		if(GetTopicFromFile())
 		{
 			MqttCMInfo("updatetopic from file is successful\n");
-			printList();
+			//printList();
 			comp_topic_name_t* temp = g_head;
 
 			while (temp != NULL)
 			{
-				MqttCMInfo("Inside mqtt else case subscribe of %s\n", temp->compName);
+				MqttCMDebug("Inside mqtt else case subscribe of %s\n", temp->compName);
 				mqtt_subscribe(temp->compName, temp->topic);
 				temp = temp->next;
 			}
