@@ -169,7 +169,7 @@ bool mqttCMConnectBroker()
 	MqttCMInfo("Initializing MQTT library\n");
 	mosquitto_lib_init();
 
-	int clean_session = true;
+	int clean_session = false;
 
 	if (clientId !=NULL)
 	{
