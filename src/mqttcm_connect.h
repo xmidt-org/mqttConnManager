@@ -108,12 +108,13 @@ int isReconnectNeeded();
 int GetTopicFromFileandUpdateList();
 char* GetTopicFromSubcribeId(int subscribeId);
 void printList();
+void sixg_mqtt_dump(long mlen, void *mbuf);
 
 void init_mqtt_timer (mqtt_timer_t *timer, int max_count);
 void convertToUppercase(char *deviceId);
 int writeToDBFile(char *db_file_path, char *data, size_t size);
 void get_from_file(char *key, char **val, char *filepath);
-void publish_notify_mqtt(char *pub_topic, void *payload, ssize_t len);
+void publish_notify_mqtt(char *pub_topic, void *payload, long len);
 int get_global_mqtt_connected();
 void reset_global_mqttConnected();
 void set_global_mqttConnected();

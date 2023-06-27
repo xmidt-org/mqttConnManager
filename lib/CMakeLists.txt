@@ -29,7 +29,7 @@ set(SOURCES mqttcm_conn.c)
 add_library(${PROJ_MQTTCMLIB}.shared SHARED ${HEADERS} ${SOURCES})
 set_target_properties(${PROJ_MQTTCMLIB}.shared PROPERTIES OUTPUT_NAME ${PROJ_MQTTCMLIB})
 set_property(TARGET ${PROJ_MQTTCMLIB}.shared PROPERTY C_STANDARD 99)
-set(COMMON_LIBS -lpthread -lrbus -lmosquitto -luuid)
+set(COMMON_LIBS -lpthread -lrbus -lmosquitto -luuid -lz)
 
 target_link_libraries (${PROJ_MQTTCMLIB}.shared ${CMAKE_THREAD_LIBS_INIT} ${COMMON_LIBS})
 install (TARGETS ${PROJ_MQTTCMLIB}.shared DESTINATION lib${LIB_SUFFIX})
