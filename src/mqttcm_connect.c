@@ -426,7 +426,7 @@ void on_connect(struct mosquitto *mosq, void *obj, int reason_code, int flag, co
 	MqttCMInfo("on_connect: success. broker_connect set to 1\n");
 	broker_connect = 1;
 
-	//For Mqtt reconnection state use in-cache subscribe list
+	//For Mqtt reconnection case, use in-memory subscribe list to subscribe the components again
 	if(reconnectFlag)
 	{
 		//printList();
@@ -443,9 +443,9 @@ void on_connect(struct mosquitto *mosq, void *obj, int reason_code, int flag, co
 	}
 	else  //For crash or process restart case to get the subscribe details from file
 	{
-		if(GetTopicFromFile())
+		if(GetTopicFromFileandUpdateList())
 		{
-			MqttCMInfo("updatetopic from file is successful\n");
+			MqttCMInfo("Get subscriber topic from file and update list is successful\n");
 			//printList();
 			comp_topic_name_t* temp = g_head;
 
@@ -472,11 +472,19 @@ void on_subscribe(struct mosquitto *mosq, void *obj, int mid, int qos_count, con
 	//send on_subscribe callback event to webconfig via rbus.
 	MqttCMInfo("mid for sub is %d\n", mid);
 	char *topicname = GetTopicFromSubcribeId(mid);
-	MqttCMInfo("topicname is %s\n", topicname);
 
-	if((topicname != NULL) && (strcmp(topicname, SUBSCRIBE_WEBCONFIG) == 0))
+	if(topicname != NULL)
 	{
-		sendRbusEventWebcfgOnSubscribe();
+		MqttCMInfo("topicname is %s\n", topicname);
+
+		if(strcmp(topicname, SUBSCRIBE_WEBCONFIG) == 0)
+		{
+			sendRbusEventWebcfgOnSubscribe();
+		}
+	}
+	else
+	{
+		MqttCMError("Failed to get subscribe topic name from mid\n");
 	}
 
         for(i=0; i<qos_count; i++)
@@ -1191,7 +1199,7 @@ rbusError_t MqttSubscribeMethodHandler(rbusHandle_t handle, char const* methodNa
                                 compname_str = (char *) rbusValue_GetString(compname, NULL);
                                 if(compname_str)
                                 {
-                                        MqttCMInfo("compname value recieved is %s\n",compname_str);
+                                        MqttCMInfo("compname value received is %s\n",compname_str);
                                 }
                         }
 
@@ -1610,6 +1618,7 @@ void AddSubscriptionIdToList(char *comp, int subscribeId)
 		if(strcmp(temp->compName, comp) == 0)
 		{
 			temp->subscribeId = subscribeId;
+			MqttCMInfo("The component %s is subscribed to topic %s with subscribeId %d\n", temp->compName, temp->topic, subscribeId);
 			return;
 		}
 		temp = temp->next;
@@ -1618,34 +1627,42 @@ void AddSubscriptionIdToList(char *comp, int subscribeId)
 
 void insert(char * compName, char* topic)
 {
-	comp_topic_name_t* newNode = (comp_topic_name_t*)malloc(sizeof(comp_topic_name_t));
-	if(newNode)
-	{
-		memset(newNode, 0, sizeof(comp_topic_name_t) );
-		strncpy(newNode->compName, compName, sizeof(newNode->compName) - 1);
-		strncpy(newNode->topic, topic, sizeof(newNode->topic) - 1);
-		newNode->subscribeOnFlag = 0;
-		newNode->next = NULL;
 
-		if(g_head == NULL)
+	if( (compName != NULL) && (topic != NULL) )
+	{
+		comp_topic_name_t* newNode = (comp_topic_name_t*)malloc(sizeof(comp_topic_name_t));
+		if(newNode)
 		{
-			g_head = newNode;
+			memset(newNode, 0, sizeof(comp_topic_name_t) );
+			strncpy(newNode->compName, compName, sizeof(newNode->compName) - 1);
+			strncpy(newNode->topic, topic, sizeof(newNode->topic) - 1);
+			newNode->subscribeOnFlag = 0;
+			newNode->next = NULL;
+
+			if(g_head == NULL)
+			{
+				g_head = newNode;
+			}
+			else
+			{
+				comp_topic_name_t* current = g_head;
+				while (current->next != NULL)
+				{
+					current = current->next;
+				}
+				current->next = newNode;
+			}
 		}
 		else
 		{
-			comp_topic_name_t* current = g_head;
-			while (current->next != NULL)
-			{
-				current = current->next;
-			}
-			current->next = newNode;
+			MqttCMError("Memory allocation failed\n");
 		}
 	}
 	else
 	{
-		MqttCMError("Memory allocation failed\n");
-		return;
+		MqttCMError("The compName or topic name is NULL\n");
 	}
+	return;
 
 }
 
@@ -1673,7 +1690,7 @@ int mqtt_subscribe(char *comp, char *topic)
 
 		if(AddToSubscriptionList(comp ,topic))
 		{
-			//Adding int pointer subscribId in mosquitto_subscribe function to get the unique message id for subscribe callback usage
+			//Adding int pointer subscribId in mosquitto_subscribe function to get the unique subscribeId which will be sent from cloud after subscription of each component
 			int subscribeId;
 			rc = mosquitto_subscribe(mosq, &subscribeId, topic, 1);
 
@@ -1683,6 +1700,7 @@ int mqtt_subscribe(char *comp, char *topic)
 				return 1;
 			}
 
+			MqttCMInfo("The subscribeId received from broker is %d\n", subscribeId);
 			//Add the subscribeId to the list to create a mapping for each component subscribe
 			AddSubscriptionIdToList(comp, subscribeId);
 			MqttCMDebug("Component is subscribed and added to the list\n");
@@ -1700,7 +1718,7 @@ int mqtt_subscribe(char *comp, char *topic)
 	return 1;
 }
 
-int GetTopicFromFile()
+int GetTopicFromFileandUpdateList()
 {
 	FILE* file;
 	char content[256];
@@ -1725,15 +1743,22 @@ int GetTopicFromFile()
 
 			// Strip the newline character from topic value
 			char* topic = delimiterPos + 1;
-			size_t topicLength = strlen(topic);
-			if (topic[topicLength - 1] == '\n')
+			if(topic != NULL)
 			{
-				topic[topicLength - 1] = '\0';
+				size_t topicLength = strlen(topic);
+				if (topic[topicLength - 1] == '\n')
+				{
+					topic[topicLength - 1] = '\0';
+				}
 			}
+
 			insert(compName, topic);
 
-			free(compName);
-			compName = NULL;
+			if(compName != NULL)
+			{
+				free(compName);
+				compName = NULL;
+			}
 		}
 	}
 
@@ -1741,10 +1766,11 @@ int GetTopicFromFile()
 	return 1;
 }
 
+//Used to create a file for subscribed components with component name and topic, the file format is compName:topic
 void AddTopicToFile(char *compName, char *topic)
 {
 	FILE *fp;
-	char str[128];
+	char str[256] = {'\0'};
 	fp = fopen(MQTT_SUBSCRIBER_FILE , "a+");
 	if (fp == NULL)
 	{
@@ -1759,7 +1785,7 @@ void AddTopicToFile(char *compName, char *topic)
 	}
 	else
 	{
-		MqttCMInfo("AddTopicToFile failed as Compname or Topic is NULL\n");
+		MqttCMError("AddTopicToFile failed as Compname or Topic is NULL\n");
 	}
 
 	if(fp != NULL)

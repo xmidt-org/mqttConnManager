@@ -103,7 +103,7 @@ void on_subscribe(struct mosquitto *mosq, void *obj, int mid, int qos_count, con
 void on_message(struct mosquitto *mosq, void *obj, const struct mosquitto_message *msg, const mosquitto_property *props);
 void on_publish(struct mosquitto *mosq, void *obj, int mid, int reason_code, const mosquitto_property *props);
 int isReconnectNeeded();
-int GetTopicFromFile();
+int GetTopicFromFileandUpdateList();
 char* GetTopicFromSubcribeId(int subscribeId);
 void printList();
 
