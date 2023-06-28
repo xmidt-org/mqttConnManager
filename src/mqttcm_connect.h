@@ -70,7 +70,7 @@
 #define MQTT_PUBLISH_GET_TOPIC_PREFIX "x/fr/get/chi/"
 #define MQTT_PUBLISH_NOTIFY_TOPIC_PREFIX "x/fr/poke/chi/"
 
-#define MQTTCM_FREE(__x__) if(__x__ != NULL) { free((void*)(__x__)); __x__ = NULL;} else {printf("Trying to free null pointer\n");}
+#define MQTTCM_FREE(__x__) if(__x__ != NULL) { free((void*)(__x__)); __x__ = NULL;} else {MqttCMInfo("Trying to free null pointer\n");}
 
 #ifdef BUILD_YOCTO
 #define DEVICE_PROPS_FILE       "/etc/device.properties"

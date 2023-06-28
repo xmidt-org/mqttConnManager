@@ -255,9 +255,9 @@ bool mqttCMConnectBroker()
 
 						mosquitto_destroy(mosq);
 
-						free(CAFILE);
-						free(CERTFILE);
-						free(KEYFILE);
+						MQTTCM_FREE(CAFILE);
+						MQTTCM_FREE(CERTFILE);
+						MQTTCM_FREE(KEYFILE);
 						abort();
 					}
 				}
@@ -314,9 +314,9 @@ bool mqttCMConnectBroker()
 							{
 								mosquitto_destroy(mosq);
 
-								free(CAFILE);
-								free(CERTFILE);
-								free(KEYFILE);
+								MQTTCM_FREE(CAFILE);
+								MQTTCM_FREE(CERTFILE);
+								MQTTCM_FREE(KEYFILE);
 								return rc;
 							}
 						}
@@ -334,9 +334,9 @@ bool mqttCMConnectBroker()
 						mosquitto_destroy(mosq);
 						MqttCMError("mosquitto_loop_start Error: %s\n", mosquitto_strerror(rc));
 
-						free(CAFILE);
-						free(CERTFILE);
-						free(KEYFILE);
+						MQTTCM_FREE(CAFILE);
+						MQTTCM_FREE(CERTFILE);
+						MQTTCM_FREE(KEYFILE);
 						return rc;
 					}
 					else
@@ -347,9 +347,9 @@ bool mqttCMConnectBroker()
 						break;
 					}
 				}
-				/*free(CAFILE);
-				free(CERTFILE);
-				free(KEYFILE);*/
+				/*MQTTCM_FREE(CAFILE);
+				MQTTCM_FREE(CERTFILE);
+				MQTTCM_FREE(KEYFILE);*/
 			}
 			else
 			{
@@ -506,7 +506,7 @@ void on_message(struct mosquitto *mosq, void *obj, const struct mosquitto_messag
 			
 				if(mqttdata)
 				{
-					free(mqttdata);
+					MQTTCM_FREE(mqttdata);
 					mqttdata= NULL;
 				}
 
@@ -515,7 +515,7 @@ void on_message(struct mosquitto *mosq, void *obj, const struct mosquitto_messag
 				{
 					memset(mqttdata, 0, sizeof(char) * dataSize);
 					mqttdata = memcpy(mqttdata, data, dataSize );
-					free(data);
+					MQTTCM_FREE(data);
 					data = NULL;
 
 					//send on_message callback event to webconfig via rbus.
@@ -775,7 +775,7 @@ void publish_notify_mqtt(char *pub_topic, void *payload, ssize_t len)
 		MqttCMInfo("Publish payload success %d\n", rc);
 	}
 	mosquitto_loop(mosq, 0, 1);
-        mosquitto_property_free_all(&props);
+    mosquitto_property_free_all(&props);
 	MqttCMDebug("Publish mosquitto_loop done\n");
 }
 
@@ -943,11 +943,11 @@ rbusError_t MqttLocationIdSetHandler(rbusHandle_t handle, rbusProperty_t prop, r
 
 				if(locationId) {
 					valueChangeCheck(locationId, data);
-					free(locationId);
+					MQTTCM_FREE(locationId);
 					locationId = NULL;
 				}
 				locationId = strdup(data);
-				free(data);
+				MQTTCM_FREE(data);
 				MqttCMInfo("LocationId after processing %s\n", locationId);
 				retPsmSet = rbus_StoreValueIntoDB( MQTT_LOCATIONID_PARAM, locationId);
 				if (retPsmSet != RBUS_ERROR_SUCCESS)
@@ -1005,11 +1005,11 @@ rbusError_t MqttBrokerSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusS
 
 				if(broker) {
 					valueChangeCheck(broker, data);
-					free(broker);
+					MQTTCM_FREE(broker);
 					broker= NULL;
 				}
 				broker = strdup(data);
-				free(data);
+				MQTTCM_FREE(data);
 				MqttCMInfo("Broker after processing %s\n", broker);
 				retPsmSet = rbus_StoreValueIntoDB( MQTT_BROKER_PARAM, broker);
 				if (retPsmSet != RBUS_ERROR_SUCCESS)
@@ -1067,11 +1067,11 @@ rbusError_t MqttPortSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSet
 
 				if(Port) {
 					valueChangeCheck(Port, data);
-					free(Port);
+					MQTTCM_FREE(Port);
 					Port = NULL;
 				}
 				Port = strdup(data);
-				free(data);
+				MQTTCM_FREE(data);
 				MqttCMInfo("Port after processing %s\n", Port);
 				retPsmSet = rbus_StoreValueIntoDB( MQTT_PORT_PARAM, Port);
 				if (retPsmSet != RBUS_ERROR_SUCCESS)
@@ -1130,11 +1130,11 @@ rbusError_t MqttConnModeSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbu
 					MqttCMInfo("Call datamodel function  with data %s\n", data);
 
 					if(connMode) {
-						free(connMode);
+						MQTTCM_FREE(connMode);
 						connMode= NULL;
 					}
 					connMode = strdup(data);
-					free(data);
+					MQTTCM_FREE(data);
 					MqttCMInfo("connMode after processing %s\n", connMode);
 					retPsmSet = rbus_StoreValueIntoDB( MQTT_CONNECTMODE_PARAM, connMode);
 					if (retPsmSet != RBUS_ERROR_SUCCESS)
@@ -1195,11 +1195,11 @@ rbusError_t MqttSubscribeSetHandler(rbusHandle_t handle, rbusProperty_t prop, rb
 					MqttCMInfo("Call datamodel function  with data %s\n", data);
 
 					if(subscribe) {
-						free(subscribe);
+						MQTTCM_FREE(subscribe);
 						subscribe= NULL;
 					}
 					subscribe = strdup(data);
-					free(data);
+					MQTTCM_FREE(data);
 					if(clientId !=NULL)
 					{
 						snprintf(topic,MAX_MQTT_LEN,"%s%s", MQTT_SUBSCRIBE_TOPIC_PREFIX,clientId);
@@ -1541,7 +1541,7 @@ rbusError_t MqttPortGetHandler(rbusHandle_t handle, rbusProperty_t property, rbu
 				mqtt_port = (char *)malloc(sizeof(10));
 				snprintf(mqtt_port, 10, "%d",MQTT_PORT);
 				rbusValue_SetString(value, mqtt_port);
-				free(mqtt_port);
+				MQTTCM_FREE(mqtt_port);
 			}
 		}
 	}
