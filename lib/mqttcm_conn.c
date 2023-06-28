@@ -50,7 +50,7 @@ rbusHandle_t get_global_rbus_handle(void)
 	return rbus_handle;
 }
 
-int mqttcm_conn_publish_messages(char *msg, char *topic, char *qos, long msg_len)
+int mqttcm_conn_publish_messages(void *msg, char *topic, char *qos, long msg_len)
 {
 	bool ret = false;
 	rbusObject_t inParams;
@@ -62,8 +62,7 @@ int mqttcm_conn_publish_messages(char *msg, char *topic, char *qos, long msg_len
 	rbusObject_Init(&outParams, NULL);
 
 	rbusValue_Init(&value);
-	rbusValue_SetString(value, msg);
-	MqttCMInfo("%s: Messages passed to Mqttcm lib before publishing to rbus : %s",__func__,msg);
+	rbusValue_SetBytes(value, msg, msg_len);
 	rbusObject_SetValue(inParams, "payload", value);
 	rbusValue_Release(value);
 
@@ -75,11 +74,6 @@ int mqttcm_conn_publish_messages(char *msg, char *topic, char *qos, long msg_len
 	rbusValue_Init(&value);
 	rbusValue_SetString(value, qos);
 	rbusObject_SetValue(inParams, "qos", value);
-	rbusValue_Release(value);
-
-	rbusValue_Init(&value);
-	rbusValue_SetInt32(value, msg_len);
-	rbusObject_SetValue(inParams, "messages_length", value);
 	rbusValue_Release(value);
 
 	err = rbusMethod_Invoke(rbus_handle,MQTT_PUBLISH_PARAM,inParams,&outParams);

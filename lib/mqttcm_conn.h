@@ -31,6 +31,6 @@
 
 int mqttcm_conn_process_messages(void *msg, long mesg_len, bool do_compress, char *topic, char *qos);
 int mqttcm_conn_getMqttCMConnStatus();
-int mqttcm_conn_publish_messages(char *msg, char *topic, char *qos, long msg_len);
+int mqttcm_conn_publish_messages(void *msg, char *topic, char *qos, long msg_len);
 
 #endif /* MQTTCM_CONN_H_INCLUDED */

@@ -761,20 +761,8 @@ static int mqtt_retry(mqtt_timer_t *timer)
 	return MQTT_DELAY_TAKEN;
 }
 
-void sixg_mqtt_dump(long mlen, void *mbuf)
-{
-    MqttCMInfo("%s: Starting mqtt dump to /tmp/mqtt_dump",__func__);
-    FILE *fp = fopen("/tmp/mqtt_dump", "wb");
-    int exp = fwrite(mbuf, mlen, 1, fp);
-    if(exp == EOF){
-      MqttCMInfo("%s: Failed to write into /tmp/6g_mqtt_dump",__func__);
-    }
-    fclose(fp);
-}
-
-
 /* This function is used to publish the messages received from components to Broker.*/
-void publish_notify_mqtt(char *pub_topic, void *payload, long len)
+void publish_notify_mqtt(char *pub_topic, void *payload, int len)
 {
         int rc;
 
@@ -795,7 +783,6 @@ void publish_notify_mqtt(char *pub_topic, void *payload, long len)
 	}
 
 	rc = mosquitto_publish_v5(mosq, NULL, pub_topic, len, payload, 2, false, props);
-        sixg_mqtt_dump(len, payload); 
 
 	MqttCMInfo("Publish rc %d\n", rc);
         if(rc != MOSQ_ERR_SUCCESS)
@@ -1276,8 +1263,9 @@ rbusError_t MqttPublishMethodHandler(rbusHandle_t handle, char const* methodName
 {
         (void)handle;
         (void)asyncHandle;
-        char *payload_str = NULL, *topic_str = NULL, *qos_str = NULL;
-        long msg_len = 0;
+        void *payload_str = NULL;
+        char *topic_str = NULL, *qos_str = NULL;
+        int msg_len = 0;
 
         //char *pub_get_topic = NULL;
 
@@ -1286,16 +1274,14 @@ rbusError_t MqttPublishMethodHandler(rbusHandle_t handle, char const* methodName
         if(strncmp(methodName, MQTT_PUBLISH_PARAM, maxParamLen) == 0)
         {
                 rbusValue_t payload = rbusObject_GetValue(inParams, "payload");
-                //MqttCMInfo("Payload after getting value from rbus :%s",payload);
                 if(payload)
                 {
-                        if(rbusValue_GetType(payload) == RBUS_STRING)
+                        if(rbusValue_GetType(payload) == RBUS_BYTES)
                         {
-                                payload_str = (char *) rbusValue_GetString(payload, NULL);
-                                MqttCMInfo("Payload after retriving from rbus: %s",payload_str);
+                                payload_str = (void *) rbusValue_GetBytes(payload, &msg_len);
                                 if(payload_str)
                                 {
-                                        MqttCMInfo("payload value recieved is %s\n",payload_str);
+                                          MqttCMInfo("payload value recieved successfully\n");
                                 }
                         }
 
@@ -1337,29 +1323,9 @@ rbusError_t MqttPublishMethodHandler(rbusHandle_t handle, char const* methodName
 		{
 			MqttCMError("qos is empty");
 			return RBUS_ERROR_INVALID_INPUT;
-		}
+	        }
 
-                rbusValue_t length = rbusObject_GetValue(inParams, "messages_length");
-                if(length)
-                {
-                         if(rbusValue_GetType(length) == RBUS_INT32)
-                         {
-                                msg_len = (long) rbusValue_GetInt32(length);
-                                if(msg_len)
-                                {
-                                          MqttCMInfo("Message length is %ld\n",msg_len);
-                                }
-                         }
-                }
-                else
-                {
-                        MqttCMError("Message length is empty");
-                        return RBUS_ERROR_INVALID_INPUT;
-                }
-		
-                //MqttCMInfo("Length of the payload before publishing %ld",(long) strlen(payload_str));
-		//publish_notify_mqtt(topic_str, payload_str,(long) strlen(payload_str));
-                MqttCMInfo("Length of the payload before publishing-changed %ld", msg_len);
+                MqttCMInfo("Length of the payload before publishing is %d\n", msg_len);
                 publish_notify_mqtt(topic_str, payload_str, msg_len);
 		MqttCMInfo("publish_notify_mqtt done\n");
 
