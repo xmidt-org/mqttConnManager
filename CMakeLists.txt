@@ -17,6 +17,7 @@ cmake_minimum_required(VERSION 2.8.7)
 project(mqttconmgr)
 
 include(ExternalProject)
+include(CTest)
 
 add_definitions(-std=c99)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -g -Werror -Wall -Wno-sizeof-pointer-memaccess -Wno-format-truncation -Wno-unused-parameter -D_GNU_SOURCE=1")
@@ -37,6 +38,8 @@ set(INCLUDE_DIR ${INSTALL_DIR}/include)
 set(LIBRARY_DIR ${INSTALL_DIR}/lib)
 set(LIBRARY_DIR64 ${INSTALL_DIR}/lib64)
 set(COMMON_LIBRARY_DIR ${INSTALL_DIR}/lib/${CMAKE_LIBRARY_ARCHITECTURE})
+set(TEST_RESULTS_DIR ${CMAKE_CURRENT_BINARY_DIR}/test_results)
+file(MAKE_DIRECTORY ${TEST_RESULTS_DIR})
 
 include_directories(${INCLUDE_DIR}
                     ${INCLUDE_DIR}/mosquitto
@@ -95,6 +98,6 @@ link_directories ( ${LIBRARY_DIR} ${COMMON_LIBRARY_DIR} ${LIBRARY_DIR64} )
 
 add_subdirectory(src)
 
-#if (BUILD_TESTING)
- #   add_subdirectory(tests)
-#endif (BUILD_TESTING)
+if (BUILD_TESTING)
+	add_subdirectory(tests)
+endif (BUILD_TESTING)

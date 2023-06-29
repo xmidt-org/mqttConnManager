@@ -102,21 +102,24 @@ void on_message(struct mosquitto *mosq, void *obj, const struct mosquitto_messag
 void on_publish(struct mosquitto *mosq, void *obj, int mid, int reason_code, const mosquitto_property *props);
 int isReconnectNeeded();
 
+void init_mqtt_timer (mqtt_timer_t *timer, int max_count);
+void convertToUppercase(char *deviceId);
 int writeToDBFile(char *db_file_path, char *data, size_t size);
 void get_from_file(char *key, char **val, char *filepath);
 void publish_notify_mqtt(char *pub_topic, void *payload, ssize_t len);
 int get_global_mqtt_connected();
 void reset_global_mqttConnected();
 void set_global_mqttConnected();
-void checkMqttParamSet();
+int checkMqttParamSet();
 pthread_mutex_t *get_global_mqtt_retry_mut(void);
 pthread_cond_t *get_global_mqtt_retry_cond(void);
 int validateForMqttInit();
 pthread_cond_t *get_global_mqtt_cond(void);
 pthread_mutex_t *get_global_mqtt_mut(void);
 int regMqttDataModel();
-void execute_mqtt_script(char *name);
+int execute_mqtt_script(char *name);
 int getHostIPFromInterface(char *interface, char **ip);
+void fetchMqttParamsFromDB();
 int mqtt_subscribe(char *comp, char *topic);
 int mqttCMRbusInit();
 bool isRbusEnabled();
