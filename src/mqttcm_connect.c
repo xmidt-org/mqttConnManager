@@ -1781,7 +1781,7 @@ int GetTopicFromFileandUpdateList()
 }
 
 //Used to create a file for subscribed components with component name and topic, the file format is compName:topic
-void AddTopicToFile(char *compName, char *topic)
+void AddSubscribeTopicToFile(char *compName, char *topic)
 {
 	FILE *fp;
 	char str[256] = {'\0'};
@@ -1796,11 +1796,11 @@ void AddTopicToFile(char *compName, char *topic)
 	{
 		snprintf(str, sizeof(str), "%s:%s\n", compName, topic);
 		fprintf(fp, "%s", str);
-		MqttCMInfo("AddTopicToFile: Added compName %s with topic %s\n", compName, topic);
+		MqttCMInfo("AddSubscribeTopicToFile: Added compName %s with topic %s\n", compName, topic);
 	}
 	else
 	{
-		MqttCMError("AddTopicToFile failed as Compname or Topic is NULL\n");
+		MqttCMError("AddSubscribeTopicToFile failed as Compname or Topic is NULL\n");
 	}
 
 	if(fp != NULL)
@@ -1831,7 +1831,7 @@ int AddToSubscriptionList(char *compName, char *topic)
 		newNode->subscribeOnFlag = 0;
 		newNode->next = NULL;
 
-		AddTopicToFile(newNode->compName, newNode->topic);
+		AddSubscribeTopicToFile(newNode->compName, newNode->topic);
 
 		if(g_head == NULL)
 		{
