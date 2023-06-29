@@ -466,11 +466,8 @@ void on_subscribe(struct mosquitto *mosq, void *obj, int mid, int qos_count, con
         int i;
         bool have_subscription = false;
 
-	MqttCMInfo("on_subscribe callback: qos_count %d\n", qos_count);
-        //SUBSCRIBE can contain many topics at once
+	MqttCMInfo("on_subscribe callback: qos_count is %d mid is %d\n", qos_count, mid);
 
-	//send on_subscribe callback event to webconfig via rbus.
-	MqttCMInfo("mid for sub is %d\n", mid);
 	char *topicname = GetTopicFromSubcribeId(mid);
 
 	if(topicname != NULL)
@@ -479,6 +476,7 @@ void on_subscribe(struct mosquitto *mosq, void *obj, int mid, int qos_count, con
 
 		if(strcmp(topicname, SUBSCRIBE_WEBCONFIG) == 0)
 		{
+			//send on_subscribe callback event to webconfig via rbus.
 			sendRbusEventWebcfgOnSubscribe();
 		}
 	}
@@ -1201,6 +1199,11 @@ rbusError_t MqttSubscribeMethodHandler(rbusHandle_t handle, char const* methodNa
                                 {
                                         MqttCMInfo("compname value received is %s\n",compname_str);
                                 }
+				else
+				{
+					MqttCMError("compname is Invalid or NULL\n");
+					return RBUS_ERROR_INVALID_INPUT;
+				}
                         }
 
                 }
@@ -1216,7 +1219,15 @@ rbusError_t MqttSubscribeMethodHandler(rbusHandle_t handle, char const* methodNa
                         if(rbusValue_GetType(topic) == RBUS_STRING)
                         {
                                 topic_str = (char *) rbusValue_GetString(topic, NULL);
-				MqttCMInfo("topic value received is %s\n",topic_str);
+				if(topic_str)
+				{
+					MqttCMInfo("topic value received is %s\n",topic_str);
+				}
+				else
+				{
+					MqttCMError("topic_str is Invalid or NULL\n");
+					return RBUS_ERROR_INVALID_INPUT;
+				}
                         }
                 }
                 else
@@ -1618,6 +1629,7 @@ void AddSubscriptionIdToList(char *comp, int subscribeId)
 		if(strcmp(temp->compName, comp) == 0)
 		{
 			temp->subscribeId = subscribeId;
+			temp->subscribeOnFlag = 1;
 			MqttCMInfo("The component %s is subscribed to topic %s with subscribeId %d\n", temp->compName, temp->topic, subscribeId);
 			return;
 		}
@@ -1636,6 +1648,7 @@ void insert(char * compName, char* topic)
 			memset(newNode, 0, sizeof(comp_topic_name_t) );
 			strncpy(newNode->compName, compName, sizeof(newNode->compName) - 1);
 			strncpy(newNode->topic, topic, sizeof(newNode->topic) - 1);
+			//Subscribe flag is set to 0 as subscribe is not done yet 
 			newNode->subscribeOnFlag = 0;
 			newNode->next = NULL;
 
@@ -1682,6 +1695,7 @@ int mqtt_subscribe(char *comp, char *topic)
 	int rc;
 	if(topic != NULL && comp !=NULL)
 	{
+		//To Avoid resubscribe of the same component again
 		if(isSubscribeNeeded(comp) == 0)
 		{
 			MqttCMInfo("Component is already subscribed\n");
@@ -1725,7 +1739,7 @@ int GetTopicFromFileandUpdateList()
 
 	file = fopen(MQTT_SUBSCRIBER_FILE, "r");
 	if (file == NULL) {
-		printf("Failed to open %s\n", MQTT_SUBSCRIBER_FILE);
+		MqttCMError("Failed to open %s\n", MQTT_SUBSCRIBER_FILE);
 		return 0;
 	}
 
@@ -1782,6 +1796,7 @@ void AddTopicToFile(char *compName, char *topic)
 	{
 		snprintf(str, sizeof(str), "%s:%s\n", compName, topic);
 		fprintf(fp, "%s", str);
+		MqttCMInfo("AddTopicToFile: Added compName %s with topic %s\n", compName, topic);
 	}
 	else
 	{
@@ -1800,28 +1815,20 @@ int AddToSubscriptionList(char *compName, char *topic)
 	//check if component is already present in the linked list
 	MqttCMInfo("The component name is %s and the topic is %s\n", compName, topic);
 
+	//Check the list if component exists and avoid duplicate entry
 	if(isSubscribeNeeded(compName) == 1)
 	{
-		comp_topic_name_t* temp = g_head;
-		while (temp != NULL)
-		{
-			if(strcmp(compName, temp->compName) == 0)
-			{
-				temp->subscribeOnFlag = 1;
-				break;
-			}
-			temp = temp->next;
-		}
 		return 1;
 	}
-	//if component not present then add it to the list
+
+	//if component not present then add it to the list and set subscribe flag as calling function will proceed to subscribe
 	comp_topic_name_t* newNode = (comp_topic_name_t*)malloc(sizeof(comp_topic_name_t));
 	if(newNode)
 	{
 		memset(newNode, 0, sizeof(comp_topic_name_t) );
 		strncpy(newNode->compName, compName, sizeof(newNode->compName) - 1);
 		strncpy(newNode->topic, topic, sizeof(newNode->topic) - 1);
-		newNode->subscribeOnFlag = 1;
+		newNode->subscribeOnFlag = 0;
 		newNode->next = NULL;
 
 		AddTopicToFile(newNode->compName, newNode->topic);
