@@ -1621,7 +1621,7 @@ char* GetTopicFromSubcribeId(int subscribeId)
 	return NULL;
 }
 
-void AddSubscriptionIdToList(char *comp, int subscribeId)
+void UpdateSubscriptionIdToList(char *comp, int subscribeId)
 {
 	comp_topic_name_t* temp = g_head;
 	while (temp != NULL)
@@ -1716,13 +1716,13 @@ int mqtt_subscribe(char *comp, char *topic)
 
 			MqttCMInfo("The subscribeId received from broker is %d\n", subscribeId);
 			//Add the subscribeId to the list to create a mapping for each component subscribe
-			AddSubscriptionIdToList(comp, subscribeId);
+			UpdateSubscriptionIdToList(comp, subscribeId);
 			MqttCMDebug("Component is subscribed and added to the list\n");
 			return 0;
 		}
 		else
 		{
-			MqttCMInfo("Error Occured in AddToSubscriptionList\n");
+			MqttCMError("Error Occured in AddToSubscriptionList\n");
 		}
 	}
 	else
@@ -1812,8 +1812,15 @@ void AddSubscribeTopicToFile(char *compName, char *topic)
 
 int AddToSubscriptionList(char *compName, char *topic)
 {
-	//check if component is already present in the linked list
-	MqttCMInfo("The component name is %s and the topic is %s\n", compName, topic);
+	if( (compName != NULL) && (topic != NULL) )
+	{
+		MqttCMInfo("The component name is %s and the topic is %s\n", compName, topic);
+	}
+	else
+	{
+		MqttCMError("The compName or topic is NULL\n");
+		return 0;
+	}
 
 	//Check the list if component exists and avoid duplicate entry
 	if(isSubscribeNeeded(compName) == 1)
