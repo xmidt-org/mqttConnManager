@@ -43,24 +43,24 @@ int __attribute__((weak)) rbus_StoreValueIntoDB(char *paramName, char *value);
 int Get_Mqtt_LocationId( char *pString)
 {
     MqttCMInfo("Inside Get_Mqtt_LocationId weak function.\n");
-    UNUSED(pString);
+    strcpy(pString, "12345678927e9a892c670333");
     return 0;
 }
 char* Get_Mqtt_ClientId()
 {
     MqttCMInfo("Inside Get_Mqtt_ClientId weak function.\n");
-    return NULL;
+    return "123456789012";
 }
 int Get_Mqtt_Broker( char *pString)
 {
     MqttCMInfo("Inside Get_Mqtt_Broker weak function.\n");
-    UNUSED(pString);
+    strcpy(pString, "localhost");
     return 0;
 }
 int Get_Mqtt_Port( char *pString)
 {
     MqttCMInfo("Inside Get_Mqtt_Port weak function.\n");
-    UNUSED(pString);
+    strcpy(pString, "123");
     return 0;
 }
 int rbus_GetValueFromDB( char* paramName, char** paramValue)
