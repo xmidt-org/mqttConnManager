@@ -30,11 +30,11 @@
 
 static rbusHandle_t rbus_handle;
 
-rbusHandle_t get_global_rbus_handle(void);
+static rbusHandle_t get_global_rbus_handle(void);
 
-int mqttcm_conn_initialization()
+int mqttcm_conn_init()
 {   
-	int ret = RBUS_ERROR_SUCCESS;
+	rbusError_t ret = RBUS_ERROR_BUS_ERROR;
 
 	ret = rbus_open(&rbus_handle,"MQTT_COMPONENT_NAME");
 	if (ret != RBUS_ERROR_SUCCESS)
@@ -45,12 +45,12 @@ int mqttcm_conn_initialization()
 	return 1;
 }
 
-rbusHandle_t get_global_rbus_handle(void)
+static rbusHandle_t get_global_rbus_handle(void)
 {
 	return rbus_handle;
 }
 
-int mqttcm_conn_publish_messages(void *msg, char *topic, char *qos, long msg_len)
+bool mqttcm_conn_msg_publish(void *msg, char *topic, char *qos, long msg_len)
 {
 	bool ret = false;
 	rbusObject_t inParams;
@@ -89,42 +89,57 @@ int mqttcm_conn_publish_messages(void *msg, char *topic, char *qos, long msg_len
 	rbusObject_Release(inParams);
 	rbusObject_Release(outParams);
 
+        // close the opened rbus connection
+	if (RBUS_ERROR_SUCCESS != rbus_close(rbus_handle))
+	{
+		MqttCMError("%s: Failed to close rbus connection for MqttCM",__func__);
+	}
+
 	return ret;
 }
 
 //To fetch mqttcm broker connection status
-int mqttcm_conn_getMqttCMConnStatus()
+int mqttcm_conn_status_get()
 {
 	rbusValue_t value = NULL;
 	char *status = NULL;
-	int ret = 0, rc = 0;
+	int ret = 0;
+        rbusError_t  rc = RBUS_ERROR_BUS_ERROR;
 
-	rc = rbus_get(get_global_rbus_handle(), MQTT_CONNSTATUS_PARAM, &value);
-
-	if(rc == RBUS_ERROR_SUCCESS)
+	// Get global rbus handle status
+	if(get_global_rbus_handle() != NULL)
 	{
-		status = (char *)rbusValue_GetString(value, NULL);
-		if(status !=NULL)
+		rc = rbus_get(get_global_rbus_handle(), MQTT_CONNSTATUS_PARAM, &value);
+
+		if(rc == RBUS_ERROR_SUCCESS)
 		{
-			MqttCMInfo("%s: MqttCM connection status fetched is %s\n",__func__, status);
-			if(strncmp(status,  "Up", 2) == 0)
+			status = (char *)rbusValue_GetString(value, NULL);
+			if(status !=NULL)
 			{
-				ret = 1;
+				MqttCMInfo("%s: MqttCM connection status fetched is %s\n",__func__, status);
+				if(strncmp(status,  "Up", 2) == 0)
+				{
+					ret = 1;
+				}
+			}
+			else
+			{
+				MqttCMError("%s: MqttCM connect status is NULL\n",__func__);
 			}
 		}
 		else
 		{
-			MqttCMError("%s: MqttCM connect status is NULL\n",__func__);
+			MqttCMError("%s: MqttCM connect status rbus_get failed, rc %d\n",__func__, rc);
 		}
 	}
 	else
 	{
-		MqttCMError("%s: MqttCM connect status rbus_get failed, rc %d\n",__func__, rc);
+		MqttCMError("%s: Geting global rbus handle status for MqttCM failed\n",__func__);
 	}
 	return ret;
 }
 
-int mqttcm_conn_process_messages(void *msg, long mesg_len, bool do_compress, char *topic, char *qos)
+int mqttcm_conn_msg_process(void *msg, long mesg_len, bool do_compress, char *topic, char *qos)
 {
 	int rc;
 	int rbus_conn_response;
@@ -134,7 +149,7 @@ int mqttcm_conn_process_messages(void *msg, long mesg_len, bool do_compress, cha
 	long len;
 	int ret;
 
-	rbus_conn_response = mqttcm_conn_initialization();
+	rbus_conn_response = mqttcm_conn_init();
 
         // Rbus initialization for Mqttcm
 	if(!rbus_conn_response)
@@ -143,7 +158,7 @@ int mqttcm_conn_process_messages(void *msg, long mesg_len, bool do_compress, cha
 		return is_published;
 	}
         // Get Mqttcm connection status, proceed if connection is alive
-	rc = mqttcm_conn_getMqttCMConnStatus();
+	rc = mqttcm_conn_status_get();
 
 	if(rc !=0)
 	{
@@ -181,11 +196,24 @@ int mqttcm_conn_process_messages(void *msg, long mesg_len, bool do_compress, cha
 			mesg_len = len;
 		}
                 // Publish the messages to MQTTCM via rbus
-		is_published = mqttcm_conn_publish_messages(msg,topic,qos,mesg_len);
+		is_published = mqttcm_conn_msg_publish(msg,topic,qos,mesg_len);
 	}
 	else {
 		MqttCMError("%s: MqttCM connection is down; Drop/Wait for connection to up\n",__func__);
 	}
 
 	return is_published;
+}
+
+int mqttcm_conn_finish()
+{
+	rbusError_t ret = RBUS_ERROR_BUS_ERROR;
+
+	ret = rbus_close(rbus_handle);
+	if (ret != RBUS_ERROR_SUCCESS)
+	{
+		MqttCMError("%s: Rbus close failed for MQTTCM from  MqttCM lib, err=%d\n",__func__,ret);
+		return 0;
+	}
+	return 1;
 }
