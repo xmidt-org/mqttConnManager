@@ -29,7 +29,6 @@ static char* clientId = NULL;
 static char* Port =NULL;
 static char* broker = NULL;
 static char* connMode = NULL;
-static char* subscribe = NULL;
 static int mqinit = 0;
 static rbusHandle_t rbus_handle;
 static char* mqttdata = NULL;
@@ -55,7 +54,6 @@ int get_global_shutdown()
 {
 	return 0;
 }
-
 void convertToUppercase(char* deviceId)
 {
 	int j =0;
@@ -170,7 +168,7 @@ bool mqttCMConnectBroker()
 	MqttCMInfo("Initializing MQTT library\n");
 	mosquitto_lib_init();
 
-	int clean_session = true;
+	int clean_session = false;
 
 	if (clientId !=NULL)
 	{
@@ -365,11 +363,12 @@ bool mqttCMConnectBroker()
 	return rc;
 }
 
-void checkMqttParamSet()
+int checkMqttParamSet()
 {
 	if( !validateForMqttInit())
 	{
 		MqttCMInfo("Validation success for mqtt parameters, proceed to mqtt init\n");
+		return 1;
 	}
 	else
 	{
@@ -377,6 +376,7 @@ void checkMqttParamSet()
 		pthread_cond_wait(get_global_mqtt_cond(), get_global_mqtt_mut());
 		pthread_mutex_unlock(get_global_mqtt_mut());
 		MqttCMInfo("Received mqtt signal proceed to mqtt init\n");
+		return 0;
 	}
 }
 
@@ -399,14 +399,16 @@ int validateForMqttInit()
 			else
 			{
 				MqttCMInfo("All 3 mandatory params locationId, NodeId and broker are not set, waiting..\n");
+				return 1;
 			}
 		}
 		else
 		{
 			MqttCMInfo("All 3 mandatory params locationId, NodeId and broker are not set, waiting..\n");
+			return 1;
 		}
 	}
-	return 1;
+	return 0;
 }
 
 // callback called when the client receives a CONNACK message from the broker
@@ -424,27 +426,34 @@ void on_connect(struct mosquitto *mosq, void *obj, int reason_code, int flag, co
 	MqttCMInfo("on_connect: success. broker_connect set to 1\n");
 	broker_connect = 1;
 
+	//For Mqtt reconnection case, use in-memory subscribe list to subscribe the components again
 	if(reconnectFlag)
 	{
-		while(1)
+		//printList();
+		comp_topic_name_t* temp = g_head;
+
+		while (temp != NULL)
 		{
-			int subscribeSuccessFlag = 1;
+			MqttCMDebug("Inside mqtt subscribe of %s\n", temp->compName);
+			mqtt_subscribe(temp->compName, temp->topic);
+			temp = temp->next;
+		}
+
+		reconnectFlag = 0;
+	}
+	else  //For crash or process restart case to get the subscribe details from file
+	{
+		if(GetTopicFromFileandUpdateList())
+		{
+			MqttCMInfo("Get subscriber topic from file and update list is successful\n");
+			//printList();
 			comp_topic_name_t* temp = g_head;
 
 			while (temp != NULL)
 			{
-				if(mqtt_subscribe(temp->compName, temp->topic) != 0)
-				{
-					subscribeSuccessFlag = 0;
-					break;
-				}
+				MqttCMDebug("Inside mqtt else case subscribe of %s\n", temp->compName);
+				mqtt_subscribe(temp->compName, temp->topic);
 				temp = temp->next;
-			}
-
-			if(subscribeSuccessFlag)
-			{
-				reconnectFlag = 0;
-				break;
 			}
 		}
 	}
@@ -457,11 +466,24 @@ void on_subscribe(struct mosquitto *mosq, void *obj, int mid, int qos_count, con
         int i;
         bool have_subscription = false;
 
-	MqttCMInfo("on_subscribe callback: qos_count %d\n", qos_count);
-        //SUBSCRIBE can contain many topics at once
+	MqttCMInfo("on_subscribe callback: qos_count is %d mid is %d\n", qos_count, mid);
 
-	//send on_subscribe callback event to webconfig via rbus.
-	sendRbusEventWebcfgOnSubscribe();
+	char *topicname = GetTopicFromSubcribeId(mid);
+
+	if(topicname != NULL)
+	{
+		MqttCMInfo("topicname is %s\n", topicname);
+
+		if(strcmp(topicname, SUBSCRIBE_WEBCONFIG) == 0)
+		{
+			//send on_subscribe callback event to webconfig via rbus.
+			sendRbusEventWebcfgOnSubscribe();
+		}
+	}
+	else
+	{
+		MqttCMError("Failed to get subscribe topic name from mid\n");
+	}
 
         for(i=0; i<qos_count; i++)
 	{
@@ -810,7 +832,7 @@ void get_from_file(char *key, char **val, char *filepath)
         }
 }
 
-void execute_mqtt_script(char *name)
+int execute_mqtt_script(char *name)
 {
     FILE* out = NULL, *file = NULL;
     char command[100] = {'\0'};
@@ -829,13 +851,15 @@ void execute_mqtt_script(char *name)
 
             }
             fclose(file);
-
+	    return 1;
         }
         else
         {
             MqttCMError("File %s open error\n", name);
+	    return 0;
         }
     }
+    return 0;
 }
 
 int getHostIPFromInterface(char *interface, char **ip)
@@ -1158,64 +1182,79 @@ rbusError_t MqttConnModeSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbu
 	return RBUS_ERROR_SUCCESS;
 }
 
-rbusError_t MqttSubscribeSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSetHandlerOptions_t* opts)
+rbusError_t MqttSubscribeMethodHandler(rbusHandle_t handle, char const* methodName, rbusObject_t inParams, rbusObject_t outParams, rbusMethodAsyncHandle_t asyncHandle)
 {
-	(void) handle;
-	(void) opts;
-	char topic[64] = { 0 };
-	char const* paramName = rbusProperty_GetName(prop);
+	(void)handle;
+        (void)asyncHandle;
+        char *compname_str = NULL, *topic_str = NULL;
 
-	if(strncmp(paramName, MQTT_SUBSCRIBE_PARAM, maxParamLen) != 0)
-	{
-		MqttCMError("Unexpected parameter = %s\n", paramName);
-		return RBUS_ERROR_ELEMENT_DOES_NOT_EXIST;
-	}
-
-	MqttCMInfo("Parameter name is %s \n", paramName);
-	rbusValueType_t type_t;
-	rbusValue_t paramValue_t = rbusProperty_GetValue(prop);
-	if(paramValue_t) {
-		type_t = rbusValue_GetType(paramValue_t);
-	} else {
-		MqttCMError("Invalid input to set\n");
-		return RBUS_ERROR_INVALID_INPUT;
-	}
-
-	if(strncmp(paramName, MQTT_SUBSCRIBE_PARAM, maxParamLen) == 0) {
-
-		if(type_t == RBUS_STRING) {
-			char* data = rbusValue_ToString(paramValue_t, NULL, 0);
-			if(data) {
-				//this is for webcfg component, follow the same for the new components
-				if(strcmp (data, SUBSCRIBE_WEBCONFIG) == 0)
+        MqttCMInfo("methodHandler called: %s\n", methodName);
+        //rbusObject_fwrite(inParams, 1, stdout);
+        if(strncmp(methodName, MQTT_SUBSCRIBE_PARAM, maxParamLen) == 0)
+        {
+                rbusValue_t compname = rbusObject_GetValue(inParams, "compname");
+                if(compname)
+                {
+                        if(rbusValue_GetType(compname) == RBUS_STRING)
+                        {
+                                compname_str = (char *) rbusValue_GetString(compname, NULL);
+                                if(compname_str)
+                                {
+                                        MqttCMInfo("compname value received is %s\n",compname_str);
+                                }
+				else
 				{
-					MqttCMInfo("Call datamodel function  with data %s\n", data);
+					MqttCMError("compname is Invalid or NULL\n");
+					return RBUS_ERROR_INVALID_INPUT;
+				}
+                        }
 
-					if(subscribe) {
-						MQTTCM_FREE(subscribe);
-						subscribe= NULL;
-					}
-					subscribe = strdup(data);
-					MQTTCM_FREE(data);
-					if(clientId !=NULL)
-					{
-						snprintf(topic,MAX_MQTT_LEN,"%s%s", MQTT_SUBSCRIBE_TOPIC_PREFIX,clientId);
-						MqttCMInfo("The value of topic is %s\n",topic);
-					}
+                }
+                else
+                {
+                        MqttCMError("compname is empty\n");
+			return RBUS_ERROR_INVALID_INPUT;
+                }
+
+                rbusValue_t topic = rbusObject_GetValue(inParams, "topic");
+                if(topic)
+                {
+                        if(rbusValue_GetType(topic) == RBUS_STRING)
+                        {
+                                topic_str = (char *) rbusValue_GetString(topic, NULL);
+				if(topic_str)
+				{
+					MqttCMInfo("topic value received is %s\n",topic_str);
 				}
 				else
 				{
-					MqttCMError("Invalid value to set\n");
+					MqttCMError("topic_str is Invalid or NULL\n");
 					return RBUS_ERROR_INVALID_INPUT;
 				}
-                                if((topic[0] !='\0') && (strlen(topic) > 0) && (subscribe != NULL) )
-                                	mqtt_subscribe(subscribe, topic);
-	       			MqttCMDebug("mqtt_subscribe done\n");
-			}
-		} else {
-			MqttCMError("Unexpected value type for property %s\n", paramName);
+                        }
+                }
+                else
+                {
+                        MqttCMError("topic is empty\n");
 			return RBUS_ERROR_INVALID_INPUT;
+                }
+
+		if(strcmp (compname_str, SUBSCRIBE_WEBCONFIG) == 0)
+		{
+			mqtt_subscribe(compname_str, topic_str);
 		}
+		else
+                {
+                        MqttCMError("Invalid method value to set\n");
+			return RBUS_ERROR_INVALID_INPUT;
+                }
+		MqttCMDebug("mqtt_subscribe done\n");
+
+	}
+	else
+	{
+		MqttCMError("Unexpected value type for property %s\n", methodName);
+		return RBUS_ERROR_INVALID_INPUT;
 	}
 	return RBUS_ERROR_SUCCESS;
 }
@@ -1572,11 +1611,95 @@ int isSubscribeNeeded(char *compname)
 	return 2;
 }
 
+char* GetTopicFromSubcribeId(int subscribeId)
+{
+	comp_topic_name_t* temp = g_head;
+	while (temp != NULL)
+	{
+		if(temp->subscribeId == subscribeId)
+		{
+			return (temp->compName);
+		}
+		temp = temp->next;
+	}
+	return NULL;
+}
+
+void UpdateSubscriptionIdToList(char *comp, int subscribeId)
+{
+	comp_topic_name_t* temp = g_head;
+	while (temp != NULL)
+	{
+		if(strcmp(temp->compName, comp) == 0)
+		{
+			temp->subscribeId = subscribeId;
+			temp->subscribeOnFlag = 1;
+			MqttCMInfo("The component %s is subscribed to topic %s with subscribeId %d\n", temp->compName, temp->topic, subscribeId);
+			return;
+		}
+		temp = temp->next;
+	}
+}
+
+void insert(char * compName, char* topic)
+{
+
+	if( (compName != NULL) && (topic != NULL) )
+	{
+		comp_topic_name_t* newNode = (comp_topic_name_t*)malloc(sizeof(comp_topic_name_t));
+		if(newNode)
+		{
+			memset(newNode, 0, sizeof(comp_topic_name_t) );
+			strncpy(newNode->compName, compName, sizeof(newNode->compName) - 1);
+			strncpy(newNode->topic, topic, sizeof(newNode->topic) - 1);
+			//Subscribe flag is set to 0 as subscribe is not done yet 
+			newNode->subscribeOnFlag = 0;
+			newNode->next = NULL;
+
+			if(g_head == NULL)
+			{
+				g_head = newNode;
+			}
+			else
+			{
+				comp_topic_name_t* current = g_head;
+				while (current->next != NULL)
+				{
+					current = current->next;
+				}
+				current->next = newNode;
+			}
+		}
+		else
+		{
+			MqttCMError("Memory allocation failed\n");
+		}
+	}
+	else
+	{
+		MqttCMError("The compName or topic name is NULL\n");
+	}
+	return;
+
+}
+
+void printList()
+{
+	MqttCMInfo("Inside print function\n");
+	comp_topic_name_t* current = g_head;
+	while (current != NULL)
+	{
+		MqttCMInfo("compname is %s and topic is %s\n", current->compName, current->topic);
+		current = current->next;
+	}
+}
+
 int mqtt_subscribe(char *comp, char *topic)
 {
 	int rc;
 	if(topic != NULL && comp !=NULL)
 	{
+		//To Avoid resubscribe of the same component again
 		if(isSubscribeNeeded(comp) == 0)
 		{
 			MqttCMInfo("Component is already subscribed\n");
@@ -1585,7 +1708,9 @@ int mqtt_subscribe(char *comp, char *topic)
 
 		if(AddToSubscriptionList(comp ,topic))
 		{
-			rc = mosquitto_subscribe(mosq, NULL, topic, 1);
+			//Adding int pointer subscribId in mosquitto_subscribe function to get the unique subscribeId which will be sent from cloud after subscription of each component
+			int subscribeId;
+			rc = mosquitto_subscribe(mosq, &subscribeId, topic, 1);
 
 			if(rc != MOSQ_ERR_SUCCESS)
 			{
@@ -1593,12 +1718,15 @@ int mqtt_subscribe(char *comp, char *topic)
 				return 1;
 			}
 
+			MqttCMInfo("The subscribeId received from broker is %d\n", subscribeId);
+			//Add the subscribeId to the list to create a mapping for each component subscribe
+			UpdateSubscriptionIdToList(comp, subscribeId);
 			MqttCMDebug("Component is subscribed and added to the list\n");
 			return 0;
 		}
 		else
 		{
-			MqttCMInfo("Error Occured in AddToSubscriptionList\n");
+			MqttCMError("Error Occured in AddToSubscriptionList\n");
 		}
 	}
 	else
@@ -1608,34 +1736,114 @@ int mqtt_subscribe(char *comp, char *topic)
 	return 1;
 }
 
+int GetTopicFromFileandUpdateList()
+{
+	FILE* file;
+	char content[256];
+
+	file = fopen(MQTT_SUBSCRIBER_FILE, "r");
+	if (file == NULL) {
+		MqttCMError("Failed to open %s\n", MQTT_SUBSCRIBER_FILE);
+		return 0;
+	}
+
+	char *compName = NULL;
+	// Read the content from the file
+	while (fgets(content, sizeof(content), file) != NULL)
+	{
+		char* delimiterPos = strchr(content, ':');
+		if (delimiterPos != NULL)
+		{
+			*delimiterPos = '\0';  // Replace ':' with null character
+
+			// Store the first part as compName
+			compName = strdup(content);
+
+			// Strip the newline character from topic value
+			char* topic = delimiterPos + 1;
+			if(topic != NULL)
+			{
+				size_t topicLength = strlen(topic);
+				if (topic[topicLength - 1] == '\n')
+				{
+					topic[topicLength - 1] = '\0';
+				}
+			}
+
+			insert(compName, topic);
+
+			if(compName != NULL)
+			{
+				free(compName);
+				compName = NULL;
+			}
+		}
+	}
+
+	fclose(file);
+	return 1;
+}
+
+//Used to create a file for subscribed components with component name and topic, the file format is compName:topic
+void AddSubscribeTopicToFile(char *compName, char *topic)
+{
+	FILE *fp;
+	char str[256] = {'\0'};
+	fp = fopen(MQTT_SUBSCRIBER_FILE , "a+");
+	if (fp == NULL)
+	{
+		MqttCMError("Could not open file %s\n", MQTT_SUBSCRIBER_FILE );
+		return;
+	}
+
+	if((compName !=NULL) && (topic != NULL))
+	{
+		snprintf(str, sizeof(str), "%s:%s\n", compName, topic);
+		fprintf(fp, "%s", str);
+		MqttCMInfo("AddSubscribeTopicToFile: Added compName %s with topic %s\n", compName, topic);
+	}
+	else
+	{
+		MqttCMError("AddSubscribeTopicToFile failed as Compname or Topic is NULL\n");
+	}
+
+	if(fp != NULL)
+	{
+		fclose(fp);
+	}
+
+}
+
 int AddToSubscriptionList(char *compName, char *topic)
 {
-	//check if component is already present in the linked list
-	MqttCMInfo("The component name is %s and the topic is %s\n", compName, topic);
+	if( (compName != NULL) && (topic != NULL) )
+	{
+		MqttCMInfo("The component name is %s and the topic is %s\n", compName, topic);
+	}
+	else
+	{
+		MqttCMError("The compName or topic is NULL\n");
+		return 0;
+	}
 
+	//Check the list if component exists and avoid duplicate entry
 	if(isSubscribeNeeded(compName) == 1)
 	{
-		comp_topic_name_t* temp = g_head;
-		while (temp != NULL)
-		{
-			if(strcmp(compName, temp->compName))
-			{
-				temp->subscribeOnFlag = 1;
-				break;
-			}
-			temp = temp->next;
-		}
 		return 1;
 	}
-	//if component not present then add it to the list
+
+	//if component not present then add it to the list and set subscribe flag as calling function will proceed to subscribe
 	comp_topic_name_t* newNode = (comp_topic_name_t*)malloc(sizeof(comp_topic_name_t));
 	if(newNode)
 	{
 		memset(newNode, 0, sizeof(comp_topic_name_t) );
 		strncpy(newNode->compName, compName, sizeof(newNode->compName) - 1);
 		strncpy(newNode->topic, topic, sizeof(newNode->topic) - 1);
-		newNode->subscribeOnFlag = 1;
+		newNode->subscribeOnFlag = 0;
 		newNode->next = NULL;
+
+		AddSubscribeTopicToFile(newNode->compName, newNode->topic);
+
 		if(g_head == NULL)
 		{
 			g_head = newNode;
@@ -1668,7 +1876,7 @@ int regMqttDataModel()
 		{MQTT_LOCATIONID_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {MqttLocationIdGetHandler, MqttLocationIdSetHandler, NULL, NULL, NULL, NULL}},
 		{MQTT_CONNECTMODE_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {MqttConnModeGetHandler, MqttConnModeSetHandler, NULL, NULL, NULL, NULL}},
 		{MQTT_CONNSTATUS_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {MqttConnStatusGetHandler, NULL, NULL, NULL, NULL, NULL}},
-		{MQTT_SUBSCRIBE_PARAM, RBUS_ELEMENT_TYPE_PROPERTY, {NULL, MqttSubscribeSetHandler, NULL, NULL, NULL, NULL}},
+                {MQTT_SUBSCRIBE_PARAM, RBUS_ELEMENT_TYPE_METHOD, {NULL, NULL, NULL, NULL, NULL, MqttSubscribeMethodHandler}},
 		{MQTT_PUBLISH_PARAM, RBUS_ELEMENT_TYPE_METHOD, {NULL, NULL, NULL, NULL, NULL, MqttPublishMethodHandler}}
 	};
 

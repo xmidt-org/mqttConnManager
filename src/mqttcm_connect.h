@@ -51,6 +51,7 @@
 #define SINGLE_CONN_ELEMENTS 7
 #define MAX_BUF_SIZE         255
 #define maxParamLen          128
+#define MQTT_SUBSCRIBER_FILE "/tmp/mqtt_subscriber_list"
 
 #define MQTT_LOCATIONID_PARAM     "Device.X_RDK_MQTT.LocationID"
 #define MQTT_BROKER_PARAM         "Device.X_RDK_MQTT.BrokerURL"
@@ -90,6 +91,7 @@ typedef struct comp_topic_name
 	char compName[32];
 	char topic[64];
 	int subscribeOnFlag;
+	int subscribeId;
 	struct comp_topic_name *next;
 } comp_topic_name_t;
 
@@ -101,22 +103,28 @@ void on_subscribe(struct mosquitto *mosq, void *obj, int mid, int qos_count, con
 void on_message(struct mosquitto *mosq, void *obj, const struct mosquitto_message *msg, const mosquitto_property *props);
 void on_publish(struct mosquitto *mosq, void *obj, int mid, int reason_code, const mosquitto_property *props);
 int isReconnectNeeded();
+int GetTopicFromFileandUpdateList();
+char* GetTopicFromSubcribeId(int subscribeId);
+void printList();
 
+void init_mqtt_timer (mqtt_timer_t *timer, int max_count);
+void convertToUppercase(char *deviceId);
 int writeToDBFile(char *db_file_path, char *data, size_t size);
 void get_from_file(char *key, char **val, char *filepath);
 void publish_notify_mqtt(char *pub_topic, void *payload, ssize_t len);
 int get_global_mqtt_connected();
 void reset_global_mqttConnected();
 void set_global_mqttConnected();
-void checkMqttParamSet();
+int checkMqttParamSet();
 pthread_mutex_t *get_global_mqtt_retry_mut(void);
 pthread_cond_t *get_global_mqtt_retry_cond(void);
 int validateForMqttInit();
 pthread_cond_t *get_global_mqtt_cond(void);
 pthread_mutex_t *get_global_mqtt_mut(void);
 int regMqttDataModel();
-void execute_mqtt_script(char *name);
+int execute_mqtt_script(char *name);
 int getHostIPFromInterface(char *interface, char **ip);
+void fetchMqttParamsFromDB();
 int mqtt_subscribe(char *comp, char *topic);
 int mqttCMRbusInit();
 bool isRbusEnabled();
