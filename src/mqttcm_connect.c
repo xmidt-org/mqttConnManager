@@ -1641,48 +1641,6 @@ void UpdateSubscriptionIdToList(char *comp, int subscribeId)
 	}
 }
 
-void insert(char * compName, char* topic)
-{
-
-	if( (compName != NULL) && (topic != NULL) )
-	{
-		comp_topic_name_t* newNode = (comp_topic_name_t*)malloc(sizeof(comp_topic_name_t));
-		if(newNode)
-		{
-			memset(newNode, 0, sizeof(comp_topic_name_t) );
-			strncpy(newNode->compName, compName, sizeof(newNode->compName) - 1);
-			strncpy(newNode->topic, topic, sizeof(newNode->topic) - 1);
-			//Subscribe flag is set to 0 as subscribe is not done yet 
-			newNode->subscribeOnFlag = 0;
-			newNode->next = NULL;
-
-			if(g_head == NULL)
-			{
-				g_head = newNode;
-			}
-			else
-			{
-				comp_topic_name_t* current = g_head;
-				while (current->next != NULL)
-				{
-					current = current->next;
-				}
-				current->next = newNode;
-			}
-		}
-		else
-		{
-			MqttCMError("Memory allocation failed\n");
-		}
-	}
-	else
-	{
-		MqttCMError("The compName or topic name is NULL\n");
-	}
-	return;
-
-}
-
 void printList()
 {
 	MqttCMInfo("Inside print function\n");
@@ -1699,35 +1657,34 @@ int mqtt_subscribe(char *comp, char *topic)
 	int rc;
 	if(topic != NULL && comp !=NULL)
 	{
+		int ret = isSubscribeNeeded(comp);
 		//To Avoid resubscribe of the same component again
-		if(isSubscribeNeeded(comp) == 0)
+		if(ret == 0)
 		{
 			MqttCMInfo("Component is already subscribed\n");
 			return 0;
 		}
-
-		if(AddToSubscriptionList(comp ,topic))
+		else if(ret == 2)
 		{
-			//Adding int pointer subscribId in mosquitto_subscribe function to get the unique subscribeId which will be sent from cloud after subscription of each component
-			int subscribeId;
-			rc = mosquitto_subscribe(mosq, &subscribeId, topic, 1);
-
-			if(rc != MOSQ_ERR_SUCCESS)
-			{
-				MqttCMError("Error subscribing: %s\n", mosquitto_strerror(rc));
-				return 1;
-			}
-
-			MqttCMInfo("The subscribeId received from broker is %d\n", subscribeId);
-			//Add the subscribeId to the list to create a mapping for each component subscribe
-			UpdateSubscriptionIdToList(comp, subscribeId);
-			MqttCMDebug("Component is subscribed and added to the list\n");
-			return 0;
+			AddToSubscriptionList(comp ,topic, 1);
 		}
-		else
+
+
+		//Adding int pointer subscribId in mosquitto_subscribe function to get the unique subscribeId which will be sent from cloud after subscription of each component
+		int subscribeId;
+		rc = mosquitto_subscribe(mosq, &subscribeId, topic, 1);
+
+		if(rc != MOSQ_ERR_SUCCESS)
 		{
-			MqttCMError("Error Occured in AddToSubscriptionList\n");
+			MqttCMError("Error subscribing: %s\n", mosquitto_strerror(rc));
+			return 1;
 		}
+
+		MqttCMInfo("The subscribeId received from broker is %d\n", subscribeId);
+		//Add the subscribeId to the list to create a mapping for each component subscribe
+		UpdateSubscriptionIdToList(comp, subscribeId);
+		MqttCMDebug("Component is subscribed and added to the list\n");
+		return 0;
 	}
 	else
 	{
@@ -1770,7 +1727,7 @@ int GetTopicFromFileandUpdateList()
 				}
 			}
 
-			insert(compName, topic);
+			AddToSubscriptionList(compName, topic, 0);
 
 			if(compName != NULL)
 			{
@@ -1814,7 +1771,7 @@ void AddSubscribeTopicToFile(char *compName, char *topic)
 
 }
 
-int AddToSubscriptionList(char *compName, char *topic)
+int AddToSubscriptionList(char *compName, char *topic, int writeFlag)
 {
 	if( (compName != NULL) && (topic != NULL) )
 	{
@@ -1824,12 +1781,6 @@ int AddToSubscriptionList(char *compName, char *topic)
 	{
 		MqttCMError("The compName or topic is NULL\n");
 		return 0;
-	}
-
-	//Check the list if component exists and avoid duplicate entry
-	if(isSubscribeNeeded(compName) == 1)
-	{
-		return 1;
 	}
 
 	//if component not present then add it to the list and set subscribe flag as calling function will proceed to subscribe
@@ -1842,7 +1793,10 @@ int AddToSubscriptionList(char *compName, char *topic)
 		newNode->subscribeOnFlag = 0;
 		newNode->next = NULL;
 
-		AddSubscribeTopicToFile(newNode->compName, newNode->topic);
+		if(writeFlag)
+		{
+			AddSubscribeTopicToFile(newNode->compName, newNode->topic);
+		}
 
 		if(g_head == NULL)
 		{
