@@ -67,9 +67,6 @@
 #define MQTT_RETRY_ERR -1
 #define MQTT_RETRY_SHUTDOWN 1
 #define MQTT_DELAY_TAKEN 0
-#define MQTT_SUBSCRIBE_TOPIC_PREFIX "x/to/"
-#define MQTT_PUBLISH_GET_TOPIC_PREFIX "x/fr/get/chi/"
-#define MQTT_PUBLISH_NOTIFY_TOPIC_PREFIX "x/fr/poke/chi/"
 
 #define MQTTCM_FREE(__x__) if(__x__ != NULL) { free((void*)(__x__)); __x__ = NULL;} else {printf("Trying to free null pointer\n");}
 

@@ -1579,9 +1579,16 @@ rbusError_t MqttPortGetHandler(rbusHandle_t handle, rbusProperty_t property, rbu
 				MqttCMError("Port is empty\n");
 				char * mqtt_port = NULL;
 				mqtt_port = (char *)malloc(sizeof(10));
-				snprintf(mqtt_port, 10, "%d",MQTT_PORT);
-				rbusValue_SetString(value, mqtt_port);
-				MQTTCM_FREE(mqtt_port);
+				if(mqtt_port !=NULL)
+				{
+					snprintf(mqtt_port, 10, "%d",MQTT_PORT);
+					rbusValue_SetString(value, mqtt_port);
+					MQTTCM_FREE(mqtt_port);
+				}
+				else
+				{
+					MqttCMError("mqtt_port malloc failure\n");
+				}
 			}
 		}
 	}
