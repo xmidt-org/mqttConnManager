@@ -276,7 +276,7 @@ bool mqttCMConnectBroker()
 					get_interface(&bind_interface);
 					if(bind_interface != NULL)
 					{
-						MqttCMInfo("Interface fetched for mqtt connect bind is %s\n", bind_interface);
+						MqttCMDebug("Interface fetched for mqtt connect bind is %s\n", bind_interface);
 						rt = getHostIPFromInterface(bind_interface, &hostip);
 						if(rt == 1)
 						{
@@ -299,7 +299,7 @@ bool mqttCMConnectBroker()
 						{
 							port = MQTT_PORT;
 						}
-						MqttCMInfo("port int %d\n", port);
+						MqttCMDebug("port int %d\n", port);
 
 						rc = mosquitto_connect_bind_v5(mosq, broker, port, KEEPALIVE, hostip, NULL);
 
@@ -367,7 +367,7 @@ int checkMqttParamSet()
 {
 	if( !validateForMqttInit())
 	{
-		MqttCMInfo("Validation success for mqtt parameters, proceed to mqtt init\n");
+		MqttCMDebug("Validation success for mqtt parameters, proceed to mqtt init\n");
 		return 1;
 	}
 	else
@@ -384,7 +384,7 @@ int validateForMqttInit()
 {
 	if(mqinit == 0)
 	{
-		MqttCMInfo("validateForMqttInit. locationId %s clientId %s broker %s \n", locationId, clientId, broker);
+		MqttCMDebug("validateForMqttInit. locationId %s clientId %s broker %s \n", locationId, clientId, broker);
 		if (locationId != NULL && clientId != NULL && broker != NULL)
 		{
 			if ((strlen(locationId) != 0) && (strlen(clientId) != 0) && (strlen(broker) !=0))
@@ -828,7 +828,7 @@ void get_from_file(char *key, char **val, char *filepath)
         }
         else
         {
-                MqttCMInfo("val fetched is %s\n", *val);
+                MqttCMDebug("val fetched is %s\n", *val);
         }
 }
 
@@ -876,7 +876,7 @@ int getHostIPFromInterface(char *interface, char **ip)
 		close(file);
 		if(rc == 0)
 		{
-			MqttCMInfo("%s\n", inet_ntoa(((struct sockaddr_in *)&infr.ifr_addr)->sin_addr));
+			MqttCMDebug("%s\n", inet_ntoa(((struct sockaddr_in *)&infr.ifr_addr)->sin_addr));
 			*ip = inet_ntoa(((struct sockaddr_in *)&infr.ifr_addr)->sin_addr);
 			return 1;
 		}
@@ -1130,7 +1130,7 @@ rbusError_t MqttConnModeSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbu
 		return RBUS_ERROR_ELEMENT_DOES_NOT_EXIST;
 	}
 
-	rbusError_t retPsmSet = RBUS_ERROR_BUS_ERROR;
+	//rbusError_t retPsmSet = RBUS_ERROR_BUS_ERROR;
 	MqttCMInfo("Parameter name is %s \n", paramName);
 	rbusValueType_t type_t;
 	rbusValue_t paramValue_t = rbusProperty_GetValue(prop);
@@ -1157,7 +1157,7 @@ rbusError_t MqttConnModeSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbu
 					connMode = strdup(data);
 					MQTTCM_FREE(data);
 					MqttCMInfo("connMode after processing %s\n", connMode);
-					retPsmSet = rbus_StoreValueIntoDB( MQTT_CONNECTMODE_PARAM, connMode);
+					/*retPsmSet = rbus_StoreValueIntoDB( MQTT_CONNECTMODE_PARAM, connMode);
 					if (retPsmSet != RBUS_ERROR_SUCCESS)
 					{
 						MqttCMError("psm_set failed ret %d for parameter %s and value %s\n", retPsmSet, paramName, connMode);
@@ -1166,7 +1166,7 @@ rbusError_t MqttConnModeSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbu
 					else
 					{
 						MqttCMInfo("psm_set success ret %d for parameter %s and value %s\n", retPsmSet, paramName, connMode);
-					}
+					}*/
 				}
 				else
 				{
@@ -1345,7 +1345,7 @@ rbusError_t MqttLocationIdGetHandler(rbusHandle_t handle, rbusProperty_t propert
 
     propertyName = rbusProperty_GetName(property);
     if(propertyName) {
-        MqttCMInfo("Property Name is %s \n", propertyName);
+        MqttCMDebug("Property Name is %s \n", propertyName);
     } else {
         MqttCMError("Unable to handle get request for property \n");
         return RBUS_ERROR_INVALID_INPUT;
@@ -1399,7 +1399,7 @@ rbusError_t MqttBrokerGetHandler(rbusHandle_t handle, rbusProperty_t property, r
 
     propertyName = rbusProperty_GetName(property);
     if(propertyName) {
-        MqttCMInfo("Property Name is %s \n", propertyName);
+        MqttCMDebug("Property Name is %s \n", propertyName);
     } else {
         MqttCMError("Unable to handle get request for property \n");
         return RBUS_ERROR_INVALID_INPUT;
@@ -1449,11 +1449,11 @@ rbusError_t MqttConnModeGetHandler(rbusHandle_t handle, rbusProperty_t property,
     (void) handle;
     (void) opts;
     char const* propertyName;
-    rbusError_t retPsmGet = RBUS_ERROR_BUS_ERROR;
+    //rbusError_t retPsmGet = RBUS_ERROR_BUS_ERROR;
 
     propertyName = rbusProperty_GetName(property);
     if(propertyName) {
-        MqttCMInfo("Property Name is %s \n", propertyName);
+        MqttCMDebug("Property Name is %s \n", propertyName);
     } else {
         MqttCMError("Unable to handle get request for property \n");
         return RBUS_ERROR_INVALID_INPUT;
@@ -1468,7 +1468,7 @@ rbusError_t MqttConnModeGetHandler(rbusHandle_t handle, rbusProperty_t property,
 		rbusValue_SetString(value, connMode);
 	}
         else{
-		retPsmGet = rbus_GetValueFromDB( MQTT_CONNECTMODE_PARAM, &connMode );
+		/*retPsmGet = rbus_GetValueFromDB( MQTT_CONNECTMODE_PARAM, &connMode );
 		if (retPsmGet != RBUS_ERROR_SUCCESS){
 			MqttCMError("psm_get failed ret %d for parameter %s and value %s\n", retPsmGet, propertyName, connMode);
 			if(value)
@@ -1485,10 +1485,11 @@ rbusError_t MqttConnModeGetHandler(rbusHandle_t handle, rbusProperty_t property,
 			}
 			else
 			{
-				MqttCMError("connMode is empty\n");
+				MqttCMInfo("connMode is empty\n");
 				rbusValue_SetString(value, "");
 			}
-		}
+		}*/
+		rbusValue_SetString(value, "Single");
 	}
         rbusProperty_SetValue(property, value);
         rbusValue_Release(value);
@@ -1506,7 +1507,7 @@ rbusError_t MqttConnStatusGetHandler(rbusHandle_t handle, rbusProperty_t propert
 
     propertyName = rbusProperty_GetName(property);
     if(propertyName) {
-        MqttCMInfo("Property Name is %s \n", propertyName);
+        MqttCMDebug("Property Name is %s \n", propertyName);
     } else {
         MqttCMError("Unable to handle get request for property \n");
         return RBUS_ERROR_INVALID_INPUT;
@@ -1540,7 +1541,7 @@ rbusError_t MqttPortGetHandler(rbusHandle_t handle, rbusProperty_t property, rbu
 
     propertyName = rbusProperty_GetName(property);
     if(propertyName) {
-        MqttCMInfo("Property Name is %s \n", propertyName);
+        MqttCMDebug("Property Name is %s \n", propertyName);
     } else {
         MqttCMError("Unable to handle get request for property \n");
         return RBUS_ERROR_INVALID_INPUT;
@@ -1661,12 +1662,17 @@ int mqtt_subscribe(char *comp, char *topic)
 		//To Avoid resubscribe of the same component again
 		if(ret == 0)
 		{
-			MqttCMInfo("Component is already subscribed\n");
+			MqttCMInfo("Component is already subscribed, ret: %d\n", ret);
 			return 0;
 		}
 		else if(ret == 2)
 		{
+			MqttCMInfo("Adding to subscribe list, ret: %d\n", ret);
 			AddToSubscriptionList(comp ,topic, 1);
+		}
+		else
+		{
+			MqttCMInfo("Proceed to mosquitto_subscribe, ret:%d\n", ret);
 		}
 
 
@@ -1700,7 +1706,7 @@ int GetTopicFromFileandUpdateList()
 
 	file = fopen(MQTT_SUBSCRIBER_FILE, "r");
 	if (file == NULL) {
-		MqttCMError("Failed to open %s\n", MQTT_SUBSCRIBER_FILE);
+		MqttCMInfo("%s is not present\n", MQTT_SUBSCRIBER_FILE);
 		return 0;
 	}
 
@@ -1770,7 +1776,7 @@ void AddSubscribeTopicToFile(char *compName, char *topic)
 	}
 
 }
-
+//writeflag to avoid duplicate entry in the subscriber local file
 int AddToSubscriptionList(char *compName, char *topic, int writeFlag)
 {
 	if( (compName != NULL) && (topic != NULL) )
@@ -1838,7 +1844,8 @@ int regMqttDataModel()
 	if(ret == RBUS_ERROR_SUCCESS)
 	{
 		MqttCMInfo("regMqttDataModel success %s,%s\n", MQTT_BROKER_PARAM, MQTT_PORT_PARAM);
-		rbusRegWebcfgDataElements();
+		//Adding mqttcm integration in the initial phase and webconfig integration will be done later, so disabling webconfig tr181s
+		//rbusRegWebcfgDataElements();
 		fetchMqttParamsFromDB();
 	}
 	else
