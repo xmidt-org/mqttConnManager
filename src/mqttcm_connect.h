@@ -95,7 +95,7 @@ typedef struct comp_topic_name
 	struct comp_topic_name *next;
 } comp_topic_name_t;
 
-int AddToSubscriptionList(char *compName,char *topic);
+int AddToSubscriptionList(char *compName, char *topic, int writeFlag);
 const char *getComponentFromTopicName(char *topic);
 void on_connect(struct mosquitto *mosq, void *obj, int reason_code, int flag, const mosquitto_property *props);
 void on_disconnect(struct mosquitto *mosq, void *obj, int reason_code, const mosquitto_property *props);

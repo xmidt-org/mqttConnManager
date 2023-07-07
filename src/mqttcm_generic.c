@@ -28,7 +28,7 @@
 /*----------------------------------------------------------------------------*/
 /*                             Function Prototypes                            */
 /*----------------------------------------------------------------------------*/
-#ifndef MQTTCM_SUPPORT
+#ifndef FEATURE_SUPPORT_MQTTCM
 int __attribute__((weak)) Get_Mqtt_LocationId( char *pString);
 int __attribute__((weak)) Get_Mqtt_Broker( char *pString);
 int __attribute__((weak)) Get_Mqtt_Port( char *pString);
@@ -39,7 +39,7 @@ int __attribute__((weak)) rbus_StoreValueIntoDB(char *paramName, char *value);
 /*----------------------------------------------------------------------------*/
 /*                             External Functions                             */
 /*----------------------------------------------------------------------------*/
-#ifndef MQTTCM_SUPPORT
+#ifndef FEATURE_SUPPORT_MQTTCM
 int Get_Mqtt_LocationId( char *pString)
 {
     MqttCMInfo("Inside Get_Mqtt_LocationId weak function.\n");
