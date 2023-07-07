@@ -276,7 +276,7 @@ bool mqttCMConnectBroker()
 					get_interface(&bind_interface);
 					if(bind_interface != NULL)
 					{
-						MqttCMDebug("Interface fetched for mqtt connect bind is %s\n", bind_interface);
+						MqttCMInfo("Interface fetched for mqtt connect bind is %s\n", bind_interface);
 						rt = getHostIPFromInterface(bind_interface, &hostip);
 						if(rt == 1)
 						{
@@ -1916,7 +1916,7 @@ void get_interface(char **interface)
         }
         else
         {
-                MqttCMInfo("interface fetched is %s\n", *interface);
+                MqttCMDebug("interface fetched is %s\n", *interface);
         }
 #endif
 }
