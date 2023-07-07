@@ -1130,7 +1130,7 @@ rbusError_t MqttConnModeSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbu
 		return RBUS_ERROR_ELEMENT_DOES_NOT_EXIST;
 	}
 
-	//rbusError_t retPsmSet = RBUS_ERROR_BUS_ERROR;
+	rbusError_t retPsmSet = RBUS_ERROR_BUS_ERROR;
 	MqttCMInfo("Parameter name is %s \n", paramName);
 	rbusValueType_t type_t;
 	rbusValue_t paramValue_t = rbusProperty_GetValue(prop);
@@ -1146,7 +1146,9 @@ rbusError_t MqttConnModeSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbu
 		if(type_t == RBUS_STRING) {
 			char* data = rbusValue_ToString(paramValue_t, NULL, 0);
 			if(data) {
-				if(((strcmp (data, "Single") == 0)) || (strcmp (data, "Dual") == 0))
+				//Only Single broker connection is supported, Dual will be revisited in future
+				//if(((strcmp (data, "Single") == 0)) || (strcmp (data, "Dual") == 0))
+				if((strcmp (data, "Single") == 0))
 				{
 					MqttCMInfo("Call datamodel function  with data %s\n", data);
 
@@ -1157,7 +1159,7 @@ rbusError_t MqttConnModeSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbu
 					connMode = strdup(data);
 					MQTTCM_FREE(data);
 					MqttCMInfo("connMode after processing %s\n", connMode);
-					/*retPsmSet = rbus_StoreValueIntoDB( MQTT_CONNECTMODE_PARAM, connMode);
+					retPsmSet = rbus_StoreValueIntoDB( MQTT_CONNECTMODE_PARAM, connMode);
 					if (retPsmSet != RBUS_ERROR_SUCCESS)
 					{
 						MqttCMError("psm_set failed ret %d for parameter %s and value %s\n", retPsmSet, paramName, connMode);
@@ -1166,7 +1168,7 @@ rbusError_t MqttConnModeSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbu
 					else
 					{
 						MqttCMInfo("psm_set success ret %d for parameter %s and value %s\n", retPsmSet, paramName, connMode);
-					}*/
+					}
 				}
 				else
 				{
@@ -1468,6 +1470,7 @@ rbusError_t MqttConnModeGetHandler(rbusHandle_t handle, rbusProperty_t property,
 		rbusValue_SetString(value, connMode);
 	}
         else{
+		//Only Single broker connection is supported, so db get is disabled for now
 		/*retPsmGet = rbus_GetValueFromDB( MQTT_CONNECTMODE_PARAM, &connMode );
 		if (retPsmGet != RBUS_ERROR_SUCCESS){
 			MqttCMError("psm_get failed ret %d for parameter %s and value %s\n", retPsmGet, propertyName, connMode);
