@@ -83,7 +83,7 @@ bool mqttcm_conn_msg_publish(void *msg, char *topic, char *qos, long msg_len)
 		ret = true;
 	}
 	else {
-		MqttCMInfo("%s: Message published to broker failed\n",__func__);
+		MqttCMError("%s: Message published to broker failed\n",__func__);
 	}
 
 	rbusObject_Release(inParams);
