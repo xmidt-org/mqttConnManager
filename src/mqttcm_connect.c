@@ -35,6 +35,7 @@ static char* mqttdata = NULL;
 static int broker_connect = 0;
 static int reconnectFlag = 0;
 static int valueChangeFlag= 0;
+static int webcfg_subscribed = 0;
 
 pthread_mutex_t mqtt_retry_mut=PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t mqtt_retry_con=PTHREAD_COND_INITIALIZER;
@@ -477,6 +478,7 @@ void on_subscribe(struct mosquitto *mosq, void *obj, int mid, int qos_count, con
 		if(strcmp(topicname, SUBSCRIBE_WEBCONFIG) == 0)
 		{
 			//send on_subscribe callback event to webconfig via rbus.
+			webcfg_subscribed = 1;
 			sendRbusEventWebcfgOnSubscribe();
 		}
 	}
@@ -614,6 +616,7 @@ void on_disconnect(struct mosquitto *mosq, void *obj, int reason_code, const mos
 	//Resetting to trigger sync on wan_restore
 	reconnectFlag = 1;
 	mqinit = 0;
+	webcfg_subscribed = 0;
 
 	comp_topic_name_t* temp = g_head;
 	while (temp != NULL)
@@ -1241,8 +1244,9 @@ rbusError_t MqttSubscribeMethodHandler(rbusHandle_t handle, char const* methodNa
 			return RBUS_ERROR_INVALID_INPUT;
                 }
 
-		if(strcmp (compname_str, SUBSCRIBE_WEBCONFIG) == 0)
+		if(compname_str)
 		{
+			MqttCMInfo("%s proceed to mqtt_subscribe", compname_str);
 			mqtt_subscribe(compname_str, topic_str);
 		}
 		else
@@ -1250,7 +1254,7 @@ rbusError_t MqttSubscribeMethodHandler(rbusHandle_t handle, char const* methodNa
                         MqttCMError("Invalid method value to set\n");
 			return RBUS_ERROR_INVALID_INPUT;
                 }
-		MqttCMDebug("mqtt_subscribe done\n");
+		//MqttCMDebug("mqtt_subscribe done\n");
 
 	}
 	else
@@ -1687,19 +1691,31 @@ int mqtt_subscribe(char *comp, char *topic)
 
 
 		//Adding int pointer subscribId in mosquitto_subscribe function to get the unique subscribeId which will be sent from cloud after subscription of each component
-		int subscribeId;
-		rc = mosquitto_subscribe(mosq, &subscribeId, topic, 1);
-
-		if(rc != MOSQ_ERR_SUCCESS)
+		if((strcmp (comp, SUBSCRIBE_WEBCONFIG) == 0) || (webcfg_subscribed == 1))
 		{
-			MqttCMError("Error subscribing: %s\n", mosquitto_strerror(rc));
-			return 1;
-		}
+			comp_topic_name_t* temp = g_head;
+			while (temp != NULL)
+			{
+				int subscribeId;
+				rc = mosquitto_subscribe(mosq, &subscribeId, temp->topic, 1);
 
-		MqttCMInfo("The subscribeId received from broker is %d\n", subscribeId);
-		//Add the subscribeId to the list to create a mapping for each component subscribe
-		UpdateSubscriptionIdToList(comp, subscribeId);
-		MqttCMDebug("Component is subscribed and added to the list\n");
+				if(rc != MOSQ_ERR_SUCCESS)
+				{
+					MqttCMError("Error subscribing: %s for %s\n", mosquitto_strerror(rc), temp->compName);
+					//return 1;
+				}
+
+				MqttCMInfo("The subscribeId received from broker is %d\n", subscribeId);
+				//Add the subscribeId to the list to create a mapping for each component subscribe
+				UpdateSubscriptionIdToList(temp->compName, subscribeId);
+				MqttCMDebug("Component is subscribed and added to the list\n");
+				temp = temp->next;
+			}
+		}
+		else
+		{
+			MqttCMInfo("Webcfg is not subscribed, so pausing subscription of %s\n", comp);
+		}
 		return 0;
 	}
 	else
@@ -1855,7 +1871,7 @@ int regMqttDataModel()
 	{
 		MqttCMInfo("regMqttDataModel success %s,%s\n", MQTT_BROKER_PARAM, MQTT_PORT_PARAM);
 		//Adding mqttcm integration in the initial phase and webconfig integration will be done later, so disabling webconfig tr181s
-		//rbusRegWebcfgDataElements();
+		rbusRegWebcfgDataElements();
 		fetchMqttParamsFromDB();
 	}
 	else
