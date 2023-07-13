@@ -1691,26 +1691,31 @@ int mqtt_subscribe(char *comp, char *topic)
 
 
 		//Adding int pointer subscribId in mosquitto_subscribe function to get the unique subscribeId which will be sent from cloud after subscription of each component
-		if((strcmp (comp, SUBSCRIBE_WEBCONFIG) == 0) || (webcfg_subscribed == 1))
+		if(strcmp (comp, SUBSCRIBE_WEBCONFIG) == 0)
 		{
+			int subscribeId;
+			rc = mosquitto_subscribe(mosq, &subscribeId, topic, 1);
+
+			if(rc != MOSQ_ERR_SUCCESS)
+			{
+				MqttCMError("Error subscribing: %s for %s\n", mosquitto_strerror(rc), comp);
+				return 1;
+			}
+
 			comp_topic_name_t* temp = g_head;
 			while (temp != NULL)
 			{
-				int subscribeId;
-				rc = mosquitto_subscribe(mosq, &subscribeId, temp->topic, 1);
-
-				if(rc != MOSQ_ERR_SUCCESS)
-				{
-					MqttCMError("Error subscribing: %s for %s\n", mosquitto_strerror(rc), temp->compName);
-					//return 1;
-				}
-
 				MqttCMInfo("The subscribeId received from broker is %d\n", subscribeId);
 				//Add the subscribeId to the list to create a mapping for each component subscribe
 				UpdateSubscriptionIdToList(temp->compName, subscribeId);
 				MqttCMDebug("Component is subscribed and added to the list\n");
 				temp = temp->next;
 			}
+		}
+		else if(webcfg_subscribed == 1)
+		{
+			UpdateSubscriptionIdToList(comp, -1); // since subscribeId is unknown using -ve value
+			MqttCMDebug("Component is subscribed and added to the list\n");
 		}
 		else
 		{
