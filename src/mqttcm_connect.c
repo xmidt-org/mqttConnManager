@@ -617,6 +617,7 @@ void on_disconnect(struct mosquitto *mosq, void *obj, int reason_code, const mos
 	reconnectFlag = 1;
 	mqinit = 0;
 	webcfg_subscribed = 0;
+	broker_connect = 0; //To reset the broker connection status
 
 	comp_topic_name_t* temp = g_head;
 	while (temp != NULL)
