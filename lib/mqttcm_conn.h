@@ -30,8 +30,6 @@
 #define MQTT_CONNSTATUS_PARAM     "Device.X_RDK_MQTT.ConnectionStatus"
 
 int mqttcm_conn_msg_process(void *msg, long mesg_len, bool do_compress, char *topic, char *qos);
-int mqttcm_conn_status_get();
-bool mqttcm_conn_msg_publish(void *msg, char *topic, char *qos, long msg_len);
 int mqttcm_conn_init();
 int mqttcm_conn_finish();
 

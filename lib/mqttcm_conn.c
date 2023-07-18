@@ -50,7 +50,7 @@ static rbusHandle_t get_global_rbus_handle(void)
 	return rbus_handle;
 }
 
-bool mqttcm_conn_msg_publish(void *msg, char *topic, char *qos, long msg_len)
+static bool mqttcm_conn_msg_publish(void *msg, char *topic, char *qos, long msg_len)
 {
 	bool ret = false;
 	rbusObject_t inParams;
@@ -89,17 +89,11 @@ bool mqttcm_conn_msg_publish(void *msg, char *topic, char *qos, long msg_len)
 	rbusObject_Release(inParams);
 	rbusObject_Release(outParams);
 
-        // close the opened rbus connection
-	if (RBUS_ERROR_SUCCESS != rbus_close(rbus_handle))
-	{
-		MqttCMError("%s: Failed to close rbus connection for MqttCM",__func__);
-	}
-
 	return ret;
 }
 
 //To fetch mqttcm broker connection status
-int mqttcm_conn_status_get()
+static int mqttcm_conn_status_get()
 {
 	rbusValue_t value = NULL;
 	char *status = NULL;
@@ -141,23 +135,14 @@ int mqttcm_conn_status_get()
 
 int mqttcm_conn_msg_process(void *msg, long mesg_len, bool do_compress, char *topic, char *qos)
 {
-	int rc;
-	int rbus_conn_response;
+	int rc;	
 	bool is_published = false;
 	static unsigned long buflen = 0;
 	static unsigned char *buf = NULL;
 	long len;
 	int ret;
 
-	rbus_conn_response = mqttcm_conn_init();
-
-        // Rbus initialization for Mqttcm
-	if(!rbus_conn_response)
-	{
-		MqttCMInfo("%s: MqttCM lib initialization failed\n",__func__);
-		return is_published;
-	}
-        // Get Mqttcm connection status, proceed if connection is alive
+    // Get Mqttcm connection status, proceed if connection is alive
 	rc = mqttcm_conn_status_get();
 
 	if(rc !=0)
