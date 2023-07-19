@@ -97,6 +97,7 @@ link_directories ( ${LIBRARY_DIR} ${COMMON_LIBRARY_DIR} ${LIBRARY_DIR64} )
 
 
 add_subdirectory(src)
+add_subdirectory(lib)
 
 if (BUILD_TESTING)
 	add_subdirectory(tests)
