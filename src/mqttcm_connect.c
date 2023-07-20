@@ -1706,11 +1706,21 @@ int mqtt_subscribe(char *comp, char *topic)
 			comp_topic_name_t* temp = g_head;
 			while (temp != NULL)
 			{
-				MqttCMInfo("The subscribeId received from broker is %d\n", subscribeId);
-				//Add the subscribeId to the list to create a mapping for each component subscribe
-				UpdateSubscriptionIdToList(temp->compName, subscribeId);
-				MqttCMDebug("Component is subscribed and added to the list\n");
-				temp = temp->next;
+				if(strcmp(temp->compName, SUBSCRIBE_WEBCONFIG) == 0)
+				{
+					MqttCMInfo("The subscribeId received from broker is %d\n", subscribeId);
+					//Add the subscribeId to the list to create a mapping for each component subscribe
+					UpdateSubscriptionIdToList(temp->compName, subscribeId);
+					MqttCMDebug("Component is subscribed and added to the list\n");
+				}
+				else
+				{
+					MqttCMInfo("The subscribeId received from broker is -1\n");
+					//Add the subscribeId to the list to create a mapping for each component subscribe
+					UpdateSubscriptionIdToList(temp->compName, -1);
+					MqttCMDebug("Component is subscribed and added to the list\n");
+				}
+					temp = temp->next;
 			}
 		}
 		else if(webcfg_subscribed == 1)
