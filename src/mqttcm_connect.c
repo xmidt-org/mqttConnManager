@@ -1255,7 +1255,6 @@ rbusError_t MqttSubscribeMethodHandler(rbusHandle_t handle, char const* methodNa
                         MqttCMError("Invalid method value to set\n");
 			return RBUS_ERROR_INVALID_INPUT;
                 }
-		//MqttCMDebug("mqtt_subscribe done\n");
 
 	}
 	else
@@ -1708,7 +1707,6 @@ int mqtt_subscribe(char *comp, char *topic)
 			MqttCMInfo("Proceed to mosquitto_subscribe, ret:%d\n", ret);
 		}
 
-
 		//Adding int pointer subscribId in mosquitto_subscribe function to get the unique subscribeId which will be sent from cloud after subscription of each component
 		if(strcmp (comp, SUBSCRIBE_WEBCONFIG) == 0)
 		{
@@ -1738,7 +1736,7 @@ int mqtt_subscribe(char *comp, char *topic)
 					UpdateSubscriptionIdToList(temp->compName, -1);
 					MqttCMDebug("Component is subscribed and added to the list\n");
 				}
-					temp = temp->next;
+				temp = temp->next;
 			}
 		}
 		else if(webcfg_subscribed == 1)
