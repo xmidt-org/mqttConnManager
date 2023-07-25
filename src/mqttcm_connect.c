@@ -302,7 +302,7 @@ bool mqttCMConnectBroker()
 						}
 						MqttCMDebug("port int %d\n", port);
 
-						rc = mosquitto_connect_bind_v5(mosq, broker, port, KEEPALIVE, hostip, NULL);
+						rc = mosquitto_connect_bind_v5(mosq, broker, port, KEEPALIVE, hostip, NULL); 
 
 						MqttCMInfo("mosquitto_connect_bind rc %d\n", rc);
 						if(rc != MOSQ_ERR_SUCCESS)
@@ -717,8 +717,8 @@ void mqtt_rand_expiration (int random_num1, int random_num2, mqtt_timer_t *timer
 		ts_delay.tv_sec = mqtt_rand_secs (random_num1, max_secs);
 		ts_delay.tv_nsec = mqtt_rand_nsecs (random_num2);
 	}
-	MqttCMInfo("Waiting max delay %u mqttRetryTime %ld secs %ld usecs\n",
-	max_secs, ts_delay.tv_sec, ts_delay.tv_nsec/1000);
+	MqttCMInfo("Waiting max delay %u mqttRetryTime %lld secs %ld usecs\n",
+	max_secs, (long long) ts_delay.tv_sec, ts_delay.tv_nsec/1000);
 
 	/* Add delay to expire time */
 	mqtt_add_timespec (&ts_delay, ts);
@@ -1268,70 +1268,88 @@ rbusError_t MqttSubscribeMethodHandler(rbusHandle_t handle, char const* methodNa
 
 rbusError_t MqttPublishMethodHandler(rbusHandle_t handle, char const* methodName, rbusObject_t inParams, rbusObject_t outParams, rbusMethodAsyncHandle_t asyncHandle)
 {
-        (void)handle;
-        (void)asyncHandle;
-        char *payload_str = NULL, *topic_str = NULL, *qos_str = NULL;
-        //char *pub_get_topic = NULL;
+	(void)handle;
+	(void)asyncHandle;
+	void *payload_bytes = NULL;
+	char *payload_str = NULL, *topic_str = NULL, *qos_str = NULL;
+	int  msg_len = 0;
 
-        MqttCMInfo("methodHandler called: %s\n", methodName);
-        //rbusObject_fwrite(inParams, 1, stdout);
-        if(strncmp(methodName, MQTT_PUBLISH_PARAM, maxParamLen) == 0)
-        {
-                rbusValue_t payload = rbusObject_GetValue(inParams, "payload");
-                if(payload)
-                {
-                        if(rbusValue_GetType(payload) == RBUS_STRING)
-                        {
-                                payload_str = (char *) rbusValue_GetString(payload, NULL);
-                                if(payload_str)
-                                {
-                                        MqttCMInfo("payload value recieved is %s\n",payload_str);
-                                }
-                        }
+	//char *pub_get_topic = NULL;
 
-                }
-                else
-                {
-                        MqttCMError("payload is empty\n");
+	MqttCMInfo("methodHandler called: %s\n", methodName);
+	//rbusObject_fwrite(inParams, 1, stdout);
+	if(strncmp(methodName, MQTT_PUBLISH_PARAM, maxParamLen) == 0)
+	{
+		rbusValue_t payload = rbusObject_GetValue(inParams, "payload");
+		if(payload)
+		{
+			if(rbusValue_GetType(payload) == RBUS_BYTES)
+			{
+				payload_bytes = (void *) rbusValue_GetBytes(payload, &msg_len);
+				if(payload_bytes)
+				{
+					MqttCMInfo("payload bytes value recieved successfully\n");
+				}
+			}
+			else if(rbusValue_GetType(payload) == RBUS_STRING)
+			{
+				payload_str = (char *) rbusValue_GetString(payload, NULL);
+				if(payload_str)
+				{
+					MqttCMInfo("payload string value recieved successfully\n");
+				}
+			}
+		}
+		else
+		{
+			MqttCMError("payload is empty\n");
 			return RBUS_ERROR_INVALID_INPUT;
-                }
+		}
 
-                rbusValue_t topic = rbusObject_GetValue(inParams, "topic");
-                if(topic)
-                {
-                        if(rbusValue_GetType(topic) == RBUS_STRING)
-                        {
-                                topic_str = (char *) rbusValue_GetString(topic, NULL);
+		rbusValue_t topic = rbusObject_GetValue(inParams, "topic");
+		if(topic)
+		{
+			if(rbusValue_GetType(topic) == RBUS_STRING)
+			{
+				topic_str = (char *) rbusValue_GetString(topic, NULL);
 				MqttCMInfo("topic value received is %s\n",topic_str);
-                        }
-                }
-                else
-                {
-                        MqttCMError("topic is empty\n");
+			}
+		}
+		else
+		{
+			MqttCMError("topic is empty\n");
 			return RBUS_ERROR_INVALID_INPUT;
-                }
+		}
 
-                rbusValue_t qos = rbusObject_GetValue(inParams, "qos");
-                if(qos)
-                {
-                        if(rbusValue_GetType(qos) == RBUS_STRING)
-                        {
-                                qos_str = (char *) rbusValue_GetString(qos,NULL);
-                                if(qos_str)
-                                {
-                                        MqttCMInfo("qos from TR181 is %s\n",qos_str);
-                                }
-                        }
-                }
+		rbusValue_t qos = rbusObject_GetValue(inParams, "qos");
+		if(qos)
+		{
+			if(rbusValue_GetType(qos) == RBUS_STRING)
+			{
+				qos_str = (char *) rbusValue_GetString(qos,NULL);
+				if(qos_str)
+				{
+					MqttCMInfo("qos from TR181 is %s\n",qos_str);
+				}
+			}
+		}
 		else
 		{
 			MqttCMError("qos is empty");
 			return RBUS_ERROR_INVALID_INPUT;
 		}
-		
-		publish_notify_mqtt(topic_str, payload_str, strlen(payload_str));
-		MqttCMInfo("publish_notify_mqtt done\n");
 
+		if (payload_bytes != NULL)
+		{
+			MqttCMInfo("Length of the payload bytes before publishing is %d\n", msg_len);
+			publish_notify_mqtt(topic_str, payload_bytes, msg_len);
+		}
+		else if (payload_str != NULL)
+                {
+			MqttCMInfo("Length of the payload string before publishing is %d\n", strlen(payload_str));
+			publish_notify_mqtt(topic_str, payload_str, strlen(payload_str));
+		}
+		MqttCMInfo("publish_notify_mqtt done\n");
 	}
 	else 
 	{
