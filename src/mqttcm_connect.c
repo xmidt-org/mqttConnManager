@@ -302,7 +302,7 @@ bool mqttCMConnectBroker()
 						}
 						MqttCMDebug("port int %d\n", port);
 
-						rc = mosquitto_connect_bind_v5(mosq, broker, port, KEEPALIVE, hostip, NULL); 
+						rc = mosquitto_connect_bind_v5(mosq, broker, port, KEEPALIVE, hostip, NULL);
 
 						MqttCMInfo("mosquitto_connect_bind rc %d\n", rc);
 						if(rc != MOSQ_ERR_SUCCESS)
@@ -1247,7 +1247,7 @@ rbusError_t MqttSubscribeMethodHandler(rbusHandle_t handle, char const* methodNa
 
 		if(compname_str)
 		{
-			MqttCMInfo("%s proceed to mqtt_subscribe", compname_str);
+			MqttCMInfo("%s proceed to mqtt_subscribe\n", compname_str);
 			mqtt_subscribe(compname_str, topic_str);
 		}
 		else
@@ -1345,7 +1345,7 @@ rbusError_t MqttPublishMethodHandler(rbusHandle_t handle, char const* methodName
 		}
 		else if (payload_str != NULL)
                 {
-			MqttCMInfo("Length of the payload string before publishing is %d\n", strlen(payload_str));
+			MqttCMInfo("Length of the payload string before publishing is %zu\n", strlen(payload_str));
 			publish_notify_mqtt(topic_str, payload_str, strlen(payload_str));
 		}
 		MqttCMInfo("publish_notify_mqtt done\n");
@@ -1685,6 +1685,26 @@ void printList()
 	}
 }
 
+void stripAndAddModuleName(char *str, const char *substr, const char *newstr)
+{
+	size_t substrlen = strlen(substr);
+	char *match;
+
+	while ((match = strstr(str, substr)) != NULL)
+	{
+		size_t striplen = strlen(match + substrlen);
+
+		// Remove the matched substring
+		memmove(match, match + substrlen, striplen + 1);
+	}
+
+	// Find the position to add the addition
+	char *end_of_str = str + strlen(str);
+
+	// Append the addition to the end of the resulting string
+	strncat(end_of_str, newstr, strlen(newstr));
+}
+
 int mqtt_subscribe(char *comp, char *topic)
 {
 	int rc;
@@ -1711,6 +1731,11 @@ int mqtt_subscribe(char *comp, char *topic)
 		if(strcmp (comp, SUBSCRIBE_WEBCONFIG) == 0)
 		{
 			int subscribeId;
+
+			//Subscribe to wildcard topic "#"
+			stripAndAddModuleName(topic, SUBSCRIBE_WEBCONFIG, "#");
+			MqttCMInfo("Subscribing to wildcard topic - %s\n", topic);
+
 			rc = mosquitto_subscribe(mosq, &subscribeId, topic, 1);
 
 			if(rc != MOSQ_ERR_SUCCESS)
@@ -1795,7 +1820,7 @@ int GetTopicFromFileandUpdateList()
 
 			if(compName != NULL)
 			{
-				free(compName);
+				MQTTCM_FREE(compName);
 				compName = NULL;
 			}
 		}
