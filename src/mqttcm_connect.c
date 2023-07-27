@@ -1702,7 +1702,7 @@ void stripAndAddModuleName(char *str, const char *substr, const char *newstr)
 	char *end_of_str = str + strlen(str);
 
 	// Append the addition to the end of the resulting string
-	strcat(end_of_str, newstr);
+	strncat(end_of_str, newstr, strlen(newstr));
 }
 
 int mqtt_subscribe(char *comp, char *topic)
