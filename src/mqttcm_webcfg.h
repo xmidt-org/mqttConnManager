@@ -28,7 +28,13 @@
 #define WEBCFG_MQTT_ONMESSAGE_CALLBACK "Device.X_RDK_MQTT.Webconfig.OnMessageCallback"
 #define WEBCFG_MQTT_ONPUBLISH_CALLBACK "Device.X_RDK_MQTT.Webconfig.OnPublishCallback"
 
+#define MQTT_PUBLISH_NOTIFY_TOPIC_PREFIX "x/fr/"
+#define MAX_MQTT_LEN         128
+
 int rbusRegWebcfgDataElements();
 void sendRbusEventWebcfgOnSubscribe();
-void sendRbusEventWebcfgOnMessage(char *mqttdata, int dataSize);
+void sendRbusEventWebcfgOnMessage(char *mqttdata, int dataSize, char *topic_name);
 void sendRbusEventWebcfgOnPublish(int mid);
+void sendRbusErrorto_mqtt(rbusError_t rc, char *topic_name);
+char * createcJsonSchema(rbusError_t rc, char *topic_name);
+char * createMqttPubHeader(char * payload, ssize_t * payload_len);
