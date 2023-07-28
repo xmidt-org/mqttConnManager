@@ -86,7 +86,7 @@ void sendRbusEventWebcfgOnMessage(char *mqttdata, int dataSize, char *topic_name
 		if(rc != RBUS_ERROR_SUCCESS)
 		{
 			MqttCMError("provider: rbusEvent_Publish onmessage event failed: %d\n", rc);
-			sendRbusErrorto_mqtt(rc,topic_name);
+			sendRbusErrorToMqtt(rc,topic_name);
 		}
 }
 
@@ -123,19 +123,24 @@ void sendRbusEventWebcfgOnPublish(int mid)
 	}
 }
 
-void sendRbusErrorto_mqtt(rbusError_t rc, char *topic_name)
+void sendRbusErrorToMqtt(rbusError_t rc, char *topic_name)
 {
 	char topic_str[256] = { 0 };
 	char locationID[64] = { 0 };
 	static char g_ClientID[64] = { 0 };
 	char *payload = NULL;
 	ssize_t payload_len = 0;
+	if(topic_name == NULL)
+	{
+		MqttCMError("topic name is NULL for sendRbusErrorToMqtt\n");
+		return;	
+	}
 	const char *module = getComponentFromTopicName(topic_name);
 	Get_Mqtt_LocationId(locationID);
 	if( Get_Mqtt_ClientId() != NULL && strlen(Get_Mqtt_ClientId()) !=0 )
 	{
 	      strncpy(g_ClientID, Get_Mqtt_ClientId(), sizeof(g_ClientID)-1);
-	      MqttCMInfo("g_ClientID fetched from Get_Mqtt_ClientId is %s\n", g_ClientID);
+	      MqttCMDebug("g_ClientID fetched from Get_Mqtt_ClientId is %s\n", g_ClientID);
 	}
 	snprintf(topic_str, MAX_MQTT_LEN, "%s%s/%s/%s/poke", MQTT_PUBLISH_NOTIFY_TOPIC_PREFIX, g_ClientID,locationID,module);
 	
@@ -162,14 +167,14 @@ char * createMqttPubHeader(char * payload, ssize_t * payload_len)
 			if(content_type !=NULL)
 			{
 				snprintf(content_type, MAX_BUF_SIZE, "Content-type: application/json");
-				MqttCMInfo("content_type formed %s\n", content_type);
+				MqttCMDebug("content_type formed %s\n", content_type);
 			}
 
 			content_length = (char *) malloc(sizeof(char)*MAX_BUF_SIZE);
 			if(content_length !=NULL)
 			{
 				snprintf(content_length, MAX_BUF_SIZE, "\r\nContent-length: %zu", strlen(payload));
-				MqttCMInfo("content_length formed %s\n", content_length);
+				MqttCMDebug("content_length formed %s\n", content_length);
 			}
 
 			MqttCMInfo("Framing publish notification header\n");
@@ -190,7 +195,7 @@ char * createcJsonSchema(rbusError_t rc, char *topic_name)
 	if(notifyPayload != NULL)
 	{
 		snprintf(device_id, sizeof(device_id), "mac:%s", Get_Mqtt_ClientId());
-		MqttCMInfo("webconfig Device_id %s\n", device_id);
+		MqttCMDebug("webconfig Device_id %s\n", device_id);
 		cJSON_AddStringToObject(notifyPayload,"device_id", device_id);
 		cJSON_AddStringToObject(notifyPayload,"topicname", topic_name);
 		cJSON_AddNumberToObject(notifyPayload,"error_code", rc);
@@ -200,7 +205,7 @@ char * createcJsonSchema(rbusError_t rc, char *topic_name)
 			cJSON_AddStringToObject(notifyPayload,"error_details", "unknown error");	
 		stringifiedNotifyPayload = cJSON_PrintUnformatted(notifyPayload);
 		cJSON_Delete(notifyPayload);
-		MqttCMInfo("stringifiedNotifyPayload is %s\n", stringifiedNotifyPayload);
+		MqttCMDebug("stringifiedNotifyPayload is %s\n", stringifiedNotifyPayload);
 		return stringifiedNotifyPayload;
 	}
 	return NULL;

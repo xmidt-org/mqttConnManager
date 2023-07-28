@@ -35,6 +35,6 @@ int rbusRegWebcfgDataElements();
 void sendRbusEventWebcfgOnSubscribe();
 void sendRbusEventWebcfgOnMessage(char *mqttdata, int dataSize, char *topic_name);
 void sendRbusEventWebcfgOnPublish(int mid);
-void sendRbusErrorto_mqtt(rbusError_t rc, char *topic_name);
+void sendRbusErrorToMqtt(rbusError_t rc, char *topic_name);
 char * createcJsonSchema(rbusError_t rc, char *topic_name);
 char * createMqttPubHeader(char * payload, ssize_t * payload_len);
