@@ -549,7 +549,7 @@ void on_message(struct mosquitto *mosq, void *obj, const struct mosquitto_messag
 						{
 							//send on_message callback event to webconfig via rbus.
 							MqttCMDebug("Before sendRusEventWebcfgOnMessage funciton\n");
-							sendRbusEventWebcfgOnMessage(mqttdata, dataSize);
+							sendRbusEventWebcfgOnMessage(mqttdata, dataSize,topic_name);
 						}
 						else
 						{
