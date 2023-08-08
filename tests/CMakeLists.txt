@@ -29,7 +29,7 @@ link_directories ( ${LIBRARY_DIR} )
 add_test(NAME test_mqttcm_connect COMMAND ${MEMORY_CHECK} ./test_mqttcm_connect)
 set(SOURCES test_mqttcm_connect.c ../src/mqttcm_connect.c ../src/mqttcm_generic.c ../src/mqttcm_privilege.c ../src/mqttcm_webcfg.c )
 add_executable(test_mqttcm_connect ${SOURCES})
-target_link_libraries (test_mqttcm_connect -lcunit -lmsgpackc -lcimplog -lrbus -lpthread -lmosquitto -luuid)
+target_link_libraries (test_mqttcm_connect -lcunit -lmsgpackc -lcimplog -lrbus -lpthread -lmosquitto -luuid -lcjson)
 target_link_libraries (test_mqttcm_connect gcov -Wl,--no-as-needed )
 
 # Code coverage
