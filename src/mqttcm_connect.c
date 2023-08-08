@@ -1733,7 +1733,15 @@ int mqtt_subscribe(char *comp, char *topic)
 			int subscribeId;
 
 			//Subscribe to wildcard topic "#"
-			stripAndAddModuleName(topic, SUBSCRIBE_WEBCONFIG, "#");
+			char* temptopic = strndup(topic, strlen(topic));
+
+			if(temptopic == NULL)
+			{
+				MqttCMError("Failed to subscribe as topic is NULL\n");
+				return 1;
+			}
+
+			stripAndAddModuleName(temptopic, SUBSCRIBE_WEBCONFIG, "#");
 			MqttCMInfo("Subscribing to wildcard topic - %s\n", topic);
 
 			rc = mosquitto_subscribe(mosq, &subscribeId, topic, 1);
@@ -1744,6 +1752,7 @@ int mqtt_subscribe(char *comp, char *topic)
 				return 1;
 			}
 
+			MQTTCM_FREE(temptopic);
 			comp_topic_name_t* temp = g_head;
 			while (temp != NULL)
 			{
