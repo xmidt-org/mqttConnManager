@@ -1742,7 +1742,7 @@ int mqtt_subscribe(char *comp, char *topic)
 			}
 
 			stripAndAddModuleName(temptopic, SUBSCRIBE_WEBCONFIG, "#");
-			MqttCMInfo("Subscribing to wildcard topic - %s\n", topic);
+			MqttCMInfo("Subscribing to wildcard topic - %s\n", temptopic);
 
 			rc = mosquitto_subscribe(mosq, &subscribeId, topic, 1);
 
