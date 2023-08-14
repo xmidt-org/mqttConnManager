@@ -44,7 +44,7 @@
 
 #define MQTT_COMPONENT_NAME  "mqttConnManager"
 
-#define MQTT_CONFIG_FILE     "/home/infosys/mqttcm/Code/.mqttconfig"
+#define MQTT_CONFIG_FILE     "/tmp/.mqttconfig"
 #define MOSQ_TLS_VERSION     "tlsv1.2"
 #define OPENSYNC_CERT        "/etc/mqttcm/mqtt_cert_init.sh"
 #define KEEPALIVE            60
@@ -87,11 +87,11 @@ typedef struct {
 
 typedef struct comp_topic_name
 {
-        char compName[32];
-        char topic[64];
-        int subscribeOnFlag;
-        int subscribeId;
-        struct comp_topic_name *next;
+	char compName[32];
+	char topic[64];
+	int subscribeOnFlag;
+	int subscribeId;
+	struct comp_topic_name *next;
 } comp_topic_name_t;
 
 int AddToSubscriptionList(char *compName, char *topic, int writeFlag);
