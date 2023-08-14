@@ -102,11 +102,18 @@ void on_subscribe(struct mosquitto *mosq, void *obj, int mid, int qos_count, con
 void on_message(struct mosquitto *mosq, void *obj, const struct mosquitto_message *msg, const mosquitto_property *props);
 void on_publish(struct mosquitto *mosq, void *obj, int mid, int reason_code, const mosquitto_property *props);
 int isReconnectNeeded();
+int isSubscribeNeeded(char *compname);
+int UpdateSubscriptionIdToList(char *comp, int subscribeId);
 int GetTopicFromFileandUpdateList();
 char* GetTopicFromSubcribeId(int subscribeId);
 void printList();
 
 void init_mqtt_timer (mqtt_timer_t *timer, int max_count);
+unsigned update_mqtt_delay (mqtt_timer_t *timer);
+unsigned mqtt_rand_secs (int random_num, unsigned max_secs);
+unsigned mqtt_rand_nsecs (int random_num);
+void mqtt_add_timespec (struct timespec *t1, struct timespec *t2);
+void mqtt_rand_expiration (int random_num1, int random_num2, mqtt_timer_t *timer, struct timespec *ts);
 void convertToUppercase(char *deviceId);
 int writeToDBFile(char *db_file_path, char *data, size_t size);
 void get_from_file(char *key, char **val, char *filepath);
