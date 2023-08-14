@@ -82,7 +82,7 @@ ExternalProject_Add(cJSON
     GIT_TAG "39853e5148dad8dc5d32ea2b00943cf4a0c6f120"
     CMAKE_ARGS += -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}
 )
-add_library(libcJSON STATIC IMPORTED)
+add_library(libcJSON STATIC SHARED IMPORTED)
 add_dependencies(libcJSON cJSON)
 
 # rbus external dependency
