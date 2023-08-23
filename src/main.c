@@ -57,6 +57,9 @@ int main()
 	signal(SIGHUP, sig_handler);
 	signal(SIGALRM, sig_handler);
 #endif
+#ifdef DEVICE_EXTENDER
+    rdk_logger_init("/etc/debug.ini");
+#endif
 	MqttCMInfo("********** Starting component: %s **********\n", MQTT_COMPONENT_NAME);
 	mqttcm_drop_root_privilege();
 	if(isRbusEnabled())
