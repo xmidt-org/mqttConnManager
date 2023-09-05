@@ -206,7 +206,7 @@ bool mqttCMConnectBroker()
 				get_from_file("CA_FILE_PATH=", &CAFILE, MQTT_CONFIG_FILE);
 				get_from_file("CERT_FILE_PATH=", &CERTFILE, MQTT_CONFIG_FILE);
 				get_from_file("KEY_FILE_PATH=", &KEYFILE, MQTT_CONFIG_FILE);
-
+				
 				if(CAFILE !=NULL && CERTFILE!=NULL && KEYFILE !=NULL)
 				{
 					MqttCMInfo("CAFILE %s, CERTFILE %s, KEYFILE %s MOSQ_TLS_VERSION %s\n", CAFILE, CERTFILE, KEYFILE, MOSQ_TLS_VERSION);
