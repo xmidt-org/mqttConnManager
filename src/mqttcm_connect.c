@@ -766,7 +766,7 @@ static int mqtt_retry(mqtt_timer_t *timer)
 }
 
 /* This function is used to publish the messages received from components to Broker.*/
-void publish_notify_mqtt(char *pub_topic, void *payload, ssize_t len)
+int publish_notify_mqtt(char *pub_topic, void *payload, ssize_t len)
 {
         int rc;
 
@@ -798,8 +798,9 @@ void publish_notify_mqtt(char *pub_topic, void *payload, ssize_t len)
 		MqttCMInfo("Publish payload success %d\n", rc);
 	}
 	mosquitto_loop(mosq, 0, 1);
-    mosquitto_property_free_all(&props);
+	mosquitto_property_free_all(&props);
 	MqttCMDebug("Publish mosquitto_loop done\n");
+	return rc;
 }
 
 void get_from_file(char *key, char **val, char *filepath)
