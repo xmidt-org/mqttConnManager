@@ -88,6 +88,7 @@ add_dependencies(libcJSON cJSON)
 # rbus external dependency
 #-------------------------------------------------------------------------------
 ExternalProject_Add(rbus
+     DEPENDS cJSON
      PREFIX ${CMAKE_CURRENT_BINARY_DIR}/_prefix/rbus
      GIT_REPOSITORY https://github.com/rdkcentral/rbus.git
      GIT_TAG main
