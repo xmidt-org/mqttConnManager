@@ -58,7 +58,7 @@ ExternalProject_Add(mosquitto
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/_prefix/mosquitto
     GIT_REPOSITORY https://github.com/eclipse/mosquitto.git
     GIT_TAG "master"
-    CMAKE_ARGS += -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -DWITH_CJSON=no -DWITH_BROKER=ON
+    CMAKE_ARGS += -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -DWITH_CJSON=no -DWITH_BROKER=ON -DWITH_DOCS=no
 )
 add_library(libmosquitto STATIC SHARED IMPORTED)
 add_dependencies(libmosquitto mosquitto)
