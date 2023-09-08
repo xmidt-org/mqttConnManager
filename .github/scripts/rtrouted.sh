@@ -1,7 +1,7 @@
 #!/bin/bash
 export RBUS_ROOT=${HOME}/rbus
 export RBUS_INSTALL_DIR=${RBUS_ROOT}/install
-export RBUS_BRANCH=2105_sprint
+export RBUS_BRANCH=main
 mkdir -p $RBUS_INSTALL_DIR
 cd $RBUS_ROOT
 git clone https://github.com/rdkcentral/rbus
