@@ -9,4 +9,4 @@ cmake -Hrbus -Bbuild/rbus -DCMAKE_INSTALL_PREFIX=${RBUS_INSTALL_DIR}/usr -DBUILD
 make -C build/rbus && make -C build/rbus install
 export PATH=${RBUS_INSTALL_DIR}/usr/bin:${PATH} && \
 export LD_LIBRARY_PATH=${RBUS_INSTALL_DIR}/usr/lib:${LD_LIBRARY_PATH}
-nohup ./bin/rtrouted -f -l DEBUG > /tmp/rtrouted_log.txt &
+nohup rtrouted -f -l DEBUG > /tmp/rtrouted_log.txt &
