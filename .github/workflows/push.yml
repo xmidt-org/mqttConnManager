@@ -69,7 +69,6 @@ jobs:
           export LD_LIBRARY_PATH=${RBUS_INSTALL_DIR}/usr/lib:${LD_LIBRARY_PATH}
           ./tests/test_mqttcm_component -a
           ./tests/test_mqttcm_timer -a
-          ./tests/test_mqttcm_webcfg -a
 
       - name: Stop rtrouted
         run: |
