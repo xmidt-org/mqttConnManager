@@ -38,11 +38,6 @@ jobs:
       - name: Make Build Directory
         run: mkdir build
 
-      - name: Get rtrouted  Binariey
-        working-directory: build
-        run: |
-          ../.github/scripts/rtrouted.sh
-
       - name: Get Sonarcloud Binaries
         uses: xmidt-org/sonarcloud-installer-action@v1
         with:
@@ -58,7 +53,27 @@ jobs:
         working-directory: build
         run: |
           ps aux
-          build-wrapper-linux-x86/build-wrapper-linux-x86-64 --out-dir bw-output make all test
+          build-wrapper-linux-x86/build-wrapper-linux-x86-64 --out-dir bw-output make
+
+      - name: Get rtrouted  Binary
+        working-directory: build
+        run: |
+          ../.github/scripts/rtrouted.sh
+
+      - name: Unit tests run
+        working-directory: build
+        run: |
+          export RBUS_ROOT=${HOME}/rbus
+          export RBUS_INSTALL_DIR=${RBUS_ROOT}/install
+          export PATH=${RBUS_INSTALL_DIR}/usr/bin:${PATH}
+          export LD_LIBRARY_PATH=${RBUS_INSTALL_DIR}/usr/lib:${LD_LIBRARY_PATH}
+          ./tests/test_mqttcm_component -a
+          ./tests/test_mqttcm_timer -a
+          ./tests/test_mqttcm_webcfg -a
+
+      - name: Stop rtrouted
+        run: |
+          killall -9 rtrouted
 
       - name: Merge GCOV Reports for Sonarcloud
         working-directory: build
