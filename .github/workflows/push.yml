@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2021 Comcast Cable Communications Management, LLC
+# SPDX-FileCopyrightText: 2023 Comcast Cable Communications Management, LLC
 # SPDX-License-Identifier: Apache-2.0
 
 name: CI
@@ -52,7 +52,27 @@ jobs:
       - name: Build
         working-directory: build
         run: |
-          build-wrapper-linux-x86/build-wrapper-linux-x86-64 --out-dir bw-output make all test
+          ps aux
+          build-wrapper-linux-x86/build-wrapper-linux-x86-64 --out-dir bw-output make
+
+      - name: Get rtrouted  Binary
+        working-directory: build
+        run: |
+          ../.github/scripts/rtrouted.sh
+
+      - name: Unit tests run
+        working-directory: build
+        run: |
+          export RBUS_ROOT=${HOME}/rbus
+          export RBUS_INSTALL_DIR=${RBUS_ROOT}/install
+          export PATH=${RBUS_INSTALL_DIR}/usr/bin:${PATH}
+          export LD_LIBRARY_PATH=${RBUS_INSTALL_DIR}/usr/lib:${LD_LIBRARY_PATH}
+          ./tests/test_mqttcm_component -a
+          ./tests/test_mqttcm_timer -a
+
+      - name: Stop rtrouted
+        run: |
+          killall -9 rtrouted
 
       - name: Merge GCOV Reports for Sonarcloud
         working-directory: build
