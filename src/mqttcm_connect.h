@@ -117,7 +117,7 @@ void mqtt_rand_expiration (int random_num1, int random_num2, mqtt_timer_t *timer
 void convertToUppercase(char *deviceId);
 int writeToDBFile(char *db_file_path, char *data, size_t size);
 void get_from_file(char *key, char **val, char *filepath);
-void publish_notify_mqtt(char *pub_topic, void *payload, ssize_t len);
+int publish_notify_mqtt(char *pub_topic, void *payload, ssize_t len);
 int get_global_mqtt_connected();
 void reset_global_mqttConnected();
 void set_global_mqttConnected();
