@@ -38,6 +38,11 @@ jobs:
       - name: Make Build Directory
         run: mkdir build
 
+      - name: Get rtrouted  Binariey
+        working-directory: build
+        run: |
+          ../.github/scripts/rtrouted.sh
+
       - name: Get Sonarcloud Binaries
         uses: xmidt-org/sonarcloud-installer-action@v1
         with:
