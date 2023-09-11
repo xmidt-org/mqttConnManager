@@ -56,6 +56,17 @@ target_link_libraries (test_mqttcm_timer -lcunit -lmsgpackc -lcimplog -lrbus -lp
 
 target_link_libraries (test_mqttcm_timer gcov -Wl,--no-as-needed )
 
+#-------------------------------------------------------------------------------
+#   test_mqttcm_generic
+#-------------------------------------------------------------------------------
+
+add_test(NAME test_mqttcm_generic COMMAND ${MEMORY_CHECK} ./test_mqttcm_generic)
+set(SOURCES test_mqttcm_generic.c ../src/mqttcm_generic.c)
+add_executable(test_mqttcm_generic ${SOURCES})
+target_link_libraries (test_mqttcm_generic -lcunit  -lcimplog)
+
+target_link_libraries (test_mqttcm_generic gcov -Wl,--no-as-needed )
+
 
 # Code coverage
 
@@ -66,12 +77,15 @@ COMMAND lcov -q --capture --directory
 ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/test_mqttcm_component.dir/__/src --output-file test_mqttcm_component.info
 COMMAND lcov -q --capture --directory
 ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/test_mqttcm_timer.dir/__/src --output-file test_mqttcm_timer.info
+COMMAND lcov -q --capture --directory
+${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/test_mqttcm_generic.dir/__/src --output-file test_mqttcm_generic.info
 
 
 COMMAND lcov
 -a test_mqttcm_connect.info
 -a test_mqttcm_component.info
 -a test_mqttcm_timer.info
+-a test_mqttcm_generic.info
 
 COMMAND genhtml coverage.info
 WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
