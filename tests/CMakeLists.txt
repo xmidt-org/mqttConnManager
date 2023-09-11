@@ -57,6 +57,18 @@ target_link_libraries (test_mqttcm_timer -lcunit -lmsgpackc -lcimplog -lrbus -lp
 target_link_libraries (test_mqttcm_timer gcov -Wl,--no-as-needed )
 
 
+#-------------------------------------------------------------------------------
+#   test_mqttcm_rbus
+#-------------------------------------------------------------------------------
+
+add_test(NAME test_mqttcm_rbus COMMAND ${MEMORY_CHECK} ./test_mqttcm_rbus)
+set(SOURCES test_mqttcm_rbus.c ../src/mqttcm_connect.c ../src/mqttcm_generic.c ../src/mqttcm_privilege.c ../src/mqttcm_webcfg.c )
+add_executable(test_mqttcm_rbus ${SOURCES})
+target_link_libraries (test_mqttcm_rbus -lcunit -lmsgpackc -lcimplog -lrbus -lpthread -lmosquitto -luuid -lcjson)
+
+target_link_libraries (test_mqttcm_rbus gcov -Wl,--no-as-needed )
+
+
 # Code coverage
 
 add_custom_target(coverage
@@ -66,12 +78,14 @@ COMMAND lcov -q --capture --directory
 ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/test_mqttcm_component.dir/__/src --output-file test_mqttcm_component.info
 COMMAND lcov -q --capture --directory
 ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/test_mqttcm_timer.dir/__/src --output-file test_mqttcm_timer.info
-
+COMMAND lcov -q --capture --directory
+${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/test_mqttcm_rbus.dir/__/src --output-file test_mqttcm_rbus.info
 
 COMMAND lcov
 -a test_mqttcm_connect.info
 -a test_mqttcm_component.info
 -a test_mqttcm_timer.info
+-a test_mqttcm_rbus.info
 
 COMMAND genhtml coverage.info
 WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
