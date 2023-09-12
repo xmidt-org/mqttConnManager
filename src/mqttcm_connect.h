@@ -106,8 +106,8 @@ int isSubscribeNeeded(char *compname);
 int UpdateSubscriptionIdToList(char *comp, int subscribeId);
 int GetTopicFromFileandUpdateList();
 char* GetTopicFromSubcribeId(int subscribeId);
-void printList();
-
+int printList();
+int AddSubscribeTopicToFile(char *compName, char *topic);
 void init_mqtt_timer (mqtt_timer_t *timer, int max_count);
 unsigned update_mqtt_delay (mqtt_timer_t *timer);
 unsigned mqtt_rand_secs (int random_num, unsigned max_secs);
@@ -141,4 +141,4 @@ void get_interface(char **interface);
 pthread_cond_t *get_global_mqtt1_con(void);
 pthread_mutex_t *get_global_mqtt1_mut(void);
 rbusHandle_t get_global_rbus_handle(void);
-void stripAndAddModuleName(char *str, const char *substr, const char *newstr);
+int stripAndAddModuleName(char *str, const char *substr, const char *newstr);

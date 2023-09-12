@@ -1675,7 +1675,7 @@ int UpdateSubscriptionIdToList(char *comp, int subscribeId)
         return 0;
 }
 
-void printList()
+int printList()
 {
 	MqttCMInfo("Inside print function\n");
 	comp_topic_name_t* current = g_head;
@@ -1684,9 +1684,10 @@ void printList()
 		MqttCMInfo("compname is %s and topic is %s\n", current->compName, current->topic);
 		current = current->next;
 	}
+	return 1;
 }
 
-void stripAndAddModuleName(char *str, const char *substr, const char *newstr)
+int stripAndAddModuleName(char *str, const char *substr, const char *newstr)
 {
 	size_t substrlen = strlen(substr);
 	char *match;
@@ -1704,6 +1705,7 @@ void stripAndAddModuleName(char *str, const char *substr, const char *newstr)
 
 	// Append the addition to the end of the resulting string
 	strncat(end_of_str, newstr, strlen(newstr));
+	return 1;
 }
 
 int mqtt_subscribe(char *comp, char *topic)
@@ -1832,7 +1834,7 @@ int GetTopicFromFileandUpdateList()
 }
 
 //Used to create a file for subscribed components with component name and topic, the file format is compName:topic
-void AddSubscribeTopicToFile(char *compName, char *topic)
+int AddSubscribeTopicToFile(char *compName, char *topic)
 {
 	FILE *fp;
 	char str[256] = {'\0'};
@@ -1840,7 +1842,7 @@ void AddSubscribeTopicToFile(char *compName, char *topic)
 	if (fp == NULL)
 	{
 		MqttCMError("Could not open file %s\n", MQTT_SUBSCRIBER_FILE );
-		return;
+		return 0;
 	}
 
 	if((compName !=NULL) && (topic != NULL))
@@ -1848,10 +1850,12 @@ void AddSubscribeTopicToFile(char *compName, char *topic)
 		snprintf(str, sizeof(str), "%s:%s\n", compName, topic);
 		fprintf(fp, "%s", str);
 		MqttCMInfo("AddSubscribeTopicToFile: Added compName %s with topic %s\n", compName, topic);
+		return 1;
 	}
 	else
 	{
 		MqttCMError("AddSubscribeTopicToFile failed as Compname or Topic is NULL\n");
+		return 0;
 	}
 
 	if(fp != NULL)
