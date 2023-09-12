@@ -139,6 +139,8 @@ bool mqttCMConnectBroker();
 void registerRbusLogger();
 void get_interface(char **interface);
 pthread_cond_t *get_global_mqtt1_con(void);
+void mosquittoTriggerDisconnect();
+void AddSubscribeTopicToFile(char *compName, char *topic);
 pthread_mutex_t *get_global_mqtt1_mut(void);
 rbusHandle_t get_global_rbus_handle(void);
 void stripAndAddModuleName(char *str, const char *substr, const char *newstr);
