@@ -90,7 +90,7 @@ int isReconnectNeeded()
 	return reconnectFlag;
 }
 
-void valueChangeCheck(char *valueStored, char *valueChanged)
+int valueChangeCheck(char *valueStored, char *valueChanged)
 {
 	if(valueStored != NULL && valueChanged != NULL)
 	{
@@ -98,8 +98,10 @@ void valueChangeCheck(char *valueStored, char *valueChanged)
 		if(strcmp(valueStored, valueChanged)!= 0)
 		{
 			valueChangeFlag = 1;
+			return 1;
 		}
 	}
+	return 0;
 }
 
 bool isRbusEnabled() 
@@ -145,9 +147,10 @@ int mqttCMRbusInit(char *pComponentName)
 	return 1;
 }
 
-void mqttCMRbus_Uninit()
+int mqttCMRbus_Uninit()
 {
     rbus_close(rbus_handle);
+    return 1;
 }
 
 //Initialize mqtt library and connect to mqtt broker
@@ -652,10 +655,11 @@ void rbus_log_handler(
     MqttCMInfo("%5s %s:%d -- %s\n", slevel, file, line, message);
 }
 
-void registerRbusLogger()
+int registerRbusLogger()
 {
 	rbus_registerLogHandler(rbus_log_handler);
 	MqttCMInfo("Registered rbus log handler\n");
+	return 1;
 }
 
 void init_mqtt_timer (mqtt_timer_t *timer, int max_count)
@@ -1927,7 +1931,7 @@ int regMqttDataModel()
                 {MQTT_SUBSCRIBE_PARAM, RBUS_ELEMENT_TYPE_METHOD, {NULL, NULL, NULL, NULL, NULL, MqttSubscribeMethodHandler}},
 		{MQTT_PUBLISH_PARAM, RBUS_ELEMENT_TYPE_METHOD, {NULL, NULL, NULL, NULL, NULL, MqttPublishMethodHandler}}
 	};
-
+	
 	ret = rbus_regDataElements(get_global_rbus_handle(), SINGLE_CONN_ELEMENTS, dataElements);
 	if(ret == RBUS_ERROR_SUCCESS)
 	{

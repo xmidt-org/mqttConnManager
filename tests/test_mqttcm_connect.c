@@ -31,6 +31,11 @@
 #include "../src/mqttcm_privilege.h"
 #include "../src/mqttcm_webcfg.h"
 
+extern pthread_mutex_t mqtt_retry_mut;
+extern pthread_cond_t mqtt_retry_con;
+extern pthread_mutex_t mqtt_mut;
+extern pthread_cond_t mqtt_con;
+
 /*----------------------------------------------------------------------------*/
 /*                             Test Functions                             */
 /*----------------------------------------------------------------------------*/
@@ -126,9 +131,6 @@ void test_get_from_file_failure()
 }
 
 // Test case for checkMqttParamSet
-extern pthread_mutex_t mqtt_mut;
-extern pthread_cond_t mqtt_con;
-
 void signalConditionVariable() 
 {
     pthread_mutex_lock(&mqtt_mut);
@@ -328,6 +330,87 @@ void test_init_mqtt_timer_failure()
     CU_ASSERT_EQUAL(timer.count, 1);
 }   
 
+// Test case for isReconnectNeeded
+void test_isReconnectNeeded()
+{
+    // Check reconnect is needed
+    int result = isReconnectNeeded();
+    CU_ASSERT_EQUAL(result, 0);
+}
+
+// Test case for get_global_shutdown
+void test_get_global_shutdown()
+{
+    int result = get_global_shutdown();
+    CU_ASSERT_EQUAL(result, 0);
+}
+
+//Test case for valueChangeCheck 
+void test_valueChangeCheck_success()
+{
+     char valueStored[] = "12345678b897eg89034";
+     char valueChanged[] = "12345t675r6790000h67";
+     int result = valueChangeCheck(valueStored, valueChanged);
+     CU_ASSERT_EQUAL(result, 1);
+}
+
+void test_valueChangeCheck_failure()
+{
+     char valueStored[] = "12345678b897eg89034";
+     char valueChanged[] = "12345678b897eg89034";
+     int result = valueChangeCheck(valueStored, valueChanged);
+     CU_ASSERT_EQUAL(result, 0);     
+}
+
+// Test case for get_global_mqtt_retry_cond
+void test_get_global_mqtt_retry_cond()
+{
+    CU_ASSERT_PTR_EQUAL(&mqtt_retry_con, get_global_mqtt_retry_cond());
+}
+
+// Test case for get_global_mqtt_retry_mut
+void test_get_global_mqtt_retry_mut()
+{
+    CU_ASSERT_PTR_EQUAL(&mqtt_retry_mut, get_global_mqtt_retry_mut());
+}
+
+//Test case for get_global_mqtt_cond
+void test_get_global_mqtt_cond()
+{
+    CU_ASSERT_PTR_EQUAL(&mqtt_con, get_global_mqtt_cond());
+}
+
+// Test case for get_global_mqtt_mut
+void test_get_global_mqtt_mut()
+{
+    CU_ASSERT_PTR_EQUAL(&mqtt_mut, get_global_mqtt_mut());
+}
+
+// Test case for mqttCMRbus_Uninit
+void test_mqttCMRbus_Uninit()
+{
+    mqttCMRbusInit("componentName");
+    int result = mqttCMRbus_Uninit();
+    CU_ASSERT_EQUAL(result, 1);
+} 
+
+// Test case for registerRbusLogger 
+void test_registerRbusLogger()
+{
+    int result = registerRbusLogger();
+    CU_ASSERT_EQUAL(result, 1);
+}
+ 
+// Test case for rbus_log_handler
+void test_rbus_log_handler()
+{
+    rbus_log_handler(0, "file1", 1, 0, "message1");
+    rbus_log_handler(1, "file2", 2, 0, "message2");
+    rbus_log_handler(2, "file3", 3, 0, "message3");
+    rbus_log_handler(3, "file4", 4, 0, "message4");
+    rbus_log_handler(4, "file5", 5, 0, "message5");
+}
+ 
 // Test suite initialization function
 int init_suite(void) 
 {
@@ -365,6 +448,16 @@ void add_suites( CU_pSuite *suite )
     CU_add_test( *suite, "test get_executeMqttScript_failure_emptystring", test_executeMqttScript_failure_emptystring);
     CU_add_test( *suite, "test init_mqtt_timer_success", test_init_mqtt_timer_success);
     CU_add_test( *suite, "test init_mqtt_timer_failure", test_init_mqtt_timer_failure);
+    CU_add_test( *suite, "test isReconnectNeeded", test_isReconnectNeeded);
+    CU_add_test( *suite, "test get_global_shutdown", test_get_global_shutdown);
+    CU_add_test( *suite, "test valueChangeCheck", test_valueChangeCheck_success);
+    CU_add_test( *suite, "test valueChangeCheck", test_valueChangeCheck_failure);
+    CU_add_test( *suite, "test get_global_mqtt_retry_cond", test_get_global_mqtt_retry_cond);
+    CU_add_test( *suite, "test get_global_mqtt_retry_mut", test_get_global_mqtt_retry_mut);
+    CU_add_test( *suite, "test get_global_mqtt_cond", test_get_global_mqtt_cond); 
+    CU_add_test( *suite, "test get_global_mqtt_mut", test_get_global_mqtt_mut);
+    CU_add_test( *suite, "test registerRbusLogger", test_registerRbusLogger);
+    CU_add_test( *suite, "test rbus_log_handler", test_rbus_log_handler); 
 }
 
 int main( int argc, char *argv[] )
