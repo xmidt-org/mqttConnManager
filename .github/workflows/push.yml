@@ -72,6 +72,7 @@ jobs:
           ./tests/test_mqttcm_generic -a
           ./tests/test_mqttcm_connect -a
           ./tests/test_mqttcm_rbus -a
+          ./tests/test_mock_mqttcm_connect -a          
 
       - name: Stop rtrouted
         run: |
