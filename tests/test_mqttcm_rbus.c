@@ -222,6 +222,21 @@ void test_MqttConnStatusGet_Handler(void)
     mqttCMRbus_Uninit();
 }
 
+// Test function for regMqttDataModel
+void test_regMqttDataModel_success()
+{
+    mqttCMRbusInit("componentName");
+    int result = regMqttDataModel();
+    CU_ASSERT_EQUAL(result, 0);
+}
+
+void test_regMqttDataModel_failure()
+{
+    int result = regMqttDataModel();
+    CU_ASSERT_EQUAL(result, 14);
+    mqttCMRbus_Uninit();
+}
+
 void add_suites( CU_pSuite *suite )
 {
     *suite = CU_add_suite( "tests", NULL, NULL );
@@ -232,7 +247,8 @@ void add_suites( CU_pSuite *suite )
     CU_add_test( *suite, "test MqttSubscribe_MethodHandler", test_MqttSubscribe_MethodHandler);
     CU_add_test( *suite, "test MqttPublish_MethodHandler", test_MqttPublish_MethodHandler);
     CU_add_test( *suite, "test MqttConnStatusGet_Handler", test_MqttConnStatusGet_Handler);
-
+    CU_add_test( *suite, "test regMqttDataModel", test_regMqttDataModel_success);
+    CU_add_test( *suite, "test regMqttDataModel", test_regMqttDataModel_failure);
 }
 int main( int argc, char *argv[] )
 {

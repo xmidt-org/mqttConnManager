@@ -80,6 +80,16 @@ target_link_libraries (test_mqttcm_rbus -lcunit -lmsgpackc -lcimplog -lrbus -lpt
 target_link_libraries (test_mqttcm_rbus gcov -Wl,--no-as-needed )
 
 
+#-------------------------------------------------------------------------------
+#   test_mock_mqttcm_connect
+#-------------------------------------------------------------------------------
+add_test(NAME test_mock_mqttcm_connect COMMAND ${MEMORY_CHECK} ./test_mock_mqttcm_connect)
+set(SOURCES test_mock_mqttcm_connect.c ../src/mqttcm_connect.c ../src/mqttcm_generic.c ../src/mqttcm_privilege.c ../src/mqttcm_webcfg.c )
+add_executable(test_mock_mqttcm_connect ${SOURCES})
+target_link_libraries (test_mock_mqttcm_connect -lcunit -lmsgpackc -lcimplog -lrbus -lpthread -lmosquitto -luuid -lcjson -lcmocka)
+target_link_libraries (test_mock_mqttcm_connect gcov -Wl,--no-as-needed )
+
+
 # Code coverage
 
 add_custom_target(coverage
@@ -93,6 +103,8 @@ COMMAND lcov -q --capture --directory
 ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/test_mqttcm_generic.dir/__/src --output-file test_mqttcm_generic.info
 COMMAND lcov -q --capture --directory
 ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/test_mqttcm_rbus.dir/__/src --output-file test_mqttcm_rbus.info
+COMMAND lcov -q --capture --directory
+${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/test_mock_mqttcm_connect.dir/__/src --output-file test_mock_mqttcm_connect.info
 
 COMMAND lcov
 -a test_mqttcm_connect.info
@@ -100,6 +112,7 @@ COMMAND lcov
 -a test_mqttcm_timer.info
 -a test_mqttcm_generic.info
 -a test_mqttcm_rbus.info
+-a test_mock_mqttcm_connect.info
 
 COMMAND genhtml coverage.info
 WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
