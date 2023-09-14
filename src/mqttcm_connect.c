@@ -791,11 +791,11 @@ void publish_notify_mqtt(char *pub_topic, void *payload, ssize_t len)
 	MqttCMDebug("Publish rc %d\n", rc);
         if(rc != MOSQ_ERR_SUCCESS)
 	{
-                MqttCMError("Error publishing: %s\n", mosquitto_strerror(rc));
+                MqttCMError("Error publishing: %s and publish rc: %d\n", mosquitto_strerror(rc), rc);
         }
 	else
 	{
-		MqttCMDebug("Publish payload success %d\n", rc);
+		MqttCMInfo("Publish payload success %d\n", rc);
 	}
 	mosquitto_loop(mosq, 0, 1);
     mosquitto_property_free_all(&props);
@@ -1287,7 +1287,7 @@ rbusError_t MqttPublishMethodHandler(rbusHandle_t handle, char const* methodName
 				payload_bytes = (void *) rbusValue_GetBytes(payload, &msg_len);
 				if(payload_bytes)
 				{
-					MqttCMDebug("payload bytes value recieved successfully\n");
+					MqttCMInfo("payload bytes value recieved successfully\n");
 				}
 			}
 			else if(rbusValue_GetType(payload) == RBUS_STRING)
