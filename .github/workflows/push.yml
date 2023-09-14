@@ -69,10 +69,11 @@ jobs:
           export LD_LIBRARY_PATH=${RBUS_INSTALL_DIR}/usr/lib:${LD_LIBRARY_PATH}
           ./tests/test_mqttcm_component -a
           ./tests/test_mqttcm_timer -a
+          ./tests/test_mqttcm_webcfg -a
           ./tests/test_mqttcm_generic -a
           ./tests/test_mqttcm_connect -a
           ./tests/test_mqttcm_rbus -a
-          ./tests/test_mock_mqttcm_connect -a          
+          ./tests/test_mock_mqttcm_connect -a
 
       - name: Stop rtrouted
         run: |
@@ -86,7 +87,7 @@ jobs:
       - name: Upload Codecov.io
         uses: codecov/codecov-action@v1
         with:
-          directory:        .
+          directory: .
           fail_ci_if_error: true
 
      # - name: Upload SonarCloud
