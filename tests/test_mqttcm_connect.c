@@ -386,14 +386,6 @@ void test_get_global_mqtt_mut()
     CU_ASSERT_PTR_EQUAL(&mqtt_mut, get_global_mqtt_mut());
 }
 
-// Test case for mqttCMRbus_Uninit
-void test_mqttCMRbus_Uninit()
-{
-    mqttCMRbusInit("componentName");
-    int result = mqttCMRbus_Uninit();
-    CU_ASSERT_EQUAL(result, 1);
-} 
-
 // Test case for registerRbusLogger 
 void test_registerRbusLogger()
 {
@@ -411,19 +403,6 @@ void test_rbus_log_handler()
     rbus_log_handler(4, "file5", 5, 0, "message5");
 }
  
-// Test suite initialization function
-int init_suite(void) 
-{
-    // Initialize any necessary resources or setups
-    return 0;
-}
-
-// Test suite cleanup function
-int clean_suite(void) 
-{
-    // Clean up any allocated resources or memory
-    return 0;
-}
 void add_suites( CU_pSuite *suite )
 {
     *suite = CU_add_suite( "tests", NULL, NULL );

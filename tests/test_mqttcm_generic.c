@@ -71,20 +71,6 @@ void test_rbus_StoreValueIntoDB(void)
     free(pString2);     
 }
 
-int init_suite(void)
-{
-    // Initialize any necessary resources or setups
-    return 0;
-}
-
-// Test suite cleanup function
-
-int clean_suite(void)
-{
-    // Clean up any allocated resources or memory
-    return 0;
-}
-
 void add_suites( CU_pSuite *suite )
 {
     *suite = CU_add_suite( "tests", NULL, NULL );
