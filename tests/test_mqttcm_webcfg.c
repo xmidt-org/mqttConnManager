@@ -55,10 +55,10 @@ static void subscribeEventSuccessCallbackHandler(
     if(incoming_value)
     {
         char * inVal = (char *)rbusValue_GetString(incoming_value, NULL);
-	printf("inVal is %s\n", inVal);
+	MqttCMInfo("inVal is %s\n", inVal);
         if(strncmp(inVal, "success", 7) == 0)
         {
-		printf("rbusEvent_OnSubscribe callback received successfully\n");
+		MqttCMInfo("rbusEvent_OnSubscribe callback received successfully\n");
 		CU_ASSERT(1);
 	}
     }
@@ -78,8 +78,8 @@ static void messageEventSuccessCallbackHandler(
     {
 	int len = 0;
         char * inVal = (char *)rbusValue_GetBytes(incoming_value, &len);
-	printf("inVal is %.*s\n", 8, inVal);
-	printf("rbusEvent_OnMessage callback received successfully\n");
+	MqttCMInfo("inVal is %.*s\n", 8, inVal);
+	MqttCMInfo("rbusEvent_OnMessage callback received successfully\n");
 	CU_ASSERT(1);
     }
     (void)handle;
@@ -97,10 +97,10 @@ static void publishEventSuccessCallbackHandler(
     if(incoming_value)
     {
         char * inVal = (char *)rbusValue_GetString(incoming_value, NULL);
-	printf("inVal is %s\n", inVal);
+	MqttCMInfo("inVal is %s\n", inVal);
 	if(strncmp(inVal, "Message with mid 1 has been published.", 38) == 0)
 	{
-		printf("rbusEvent_OnPublish callback received successfully with message %s\n", inVal);
+		MqttCMInfo("rbusEvent_OnPublish callback received successfully with message %s\n", inVal);
 		CU_ASSERT(1);
 	}
     }
@@ -121,17 +121,17 @@ void subscribe_to_event(char * eventname)
 
 	if(strncmp(eventname, WEBCFG_MQTT_SUBSCRIBE_CALLBACK, strlen(WEBCFG_MQTT_SUBSCRIBE_CALLBACK)) == 0)
 	{
-		printf("Inside subscribeEventSuccessCallbackHandler for %s and eventname is %s\n", WEBCFG_MQTT_SUBSCRIBE_CALLBACK, eventname);
+		MqttCMInfo("Inside subscribeEventSuccessCallbackHandler for %s and eventname is %s\n", WEBCFG_MQTT_SUBSCRIBE_CALLBACK, eventname);
 		rc = rbusEvent_Subscribe(handle, eventname, subscribeEventSuccessCallbackHandler, NULL, 0);
 	}
 	else if(strncmp(eventname, WEBCFG_MQTT_ONMESSAGE_CALLBACK, strlen(WEBCFG_MQTT_ONMESSAGE_CALLBACK)) == 0)
 	{
-		printf("Inside messageEventSuccessCallbackHandler for %s and eventname is %s\n", WEBCFG_MQTT_ONMESSAGE_CALLBACK, eventname);
+		MqttCMInfo("Inside messageEventSuccessCallbackHandler for %s and eventname is %s\n", WEBCFG_MQTT_ONMESSAGE_CALLBACK, eventname);
 		rc = rbusEvent_Subscribe(handle, eventname, messageEventSuccessCallbackHandler, NULL, 0);
 	}
 	else if(strncmp(eventname, WEBCFG_MQTT_ONPUBLISH_CALLBACK, strlen(WEBCFG_MQTT_ONPUBLISH_CALLBACK)) == 0)
 	{
-		printf("Inside publishEventSuccessCallbackHandler for %s and eventname is %s\n", WEBCFG_MQTT_ONPUBLISH_CALLBACK, eventname);
+		MqttCMInfo("Inside publishEventSuccessCallbackHandler for %s and eventname is %s\n", WEBCFG_MQTT_ONPUBLISH_CALLBACK, eventname);
 		rc = rbusEvent_Subscribe(handle, eventname, publishEventSuccessCallbackHandler, NULL, 0);
 	}
 

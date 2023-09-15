@@ -165,10 +165,10 @@ char * createMqttPubHeader(char * payload, ssize_t * payload_len)
 	char *pub_headerlist = NULL;
 
 	pub_headerlist = (char *) malloc(sizeof(char) * 1024);
-	memset(pub_headerlist, 0, sizeof(char) * 1024);
 
 	if(pub_headerlist != NULL)
 	{
+		memset(pub_headerlist, 0, sizeof(char) * 1024);
 		if(payload != NULL)
 		{
 			content_type = (char *) malloc(sizeof(char)*MAX_BUF_SIZE);
