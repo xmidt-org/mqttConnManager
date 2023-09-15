@@ -146,3 +146,4 @@ void mosquittoTriggerDisconnect();
 int get_global_shutdown();
 int valueChangeCheck(char *valueStored, char *valueChanged);
 void rbus_log_handler(rbusLogLevel level, const char* file, int line, int threadId, char* message);
+int mqtt_retry(mqtt_timer_t *timer);

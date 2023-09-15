@@ -35,6 +35,7 @@ extern pthread_mutex_t mqtt_retry_mut;
 extern pthread_cond_t mqtt_retry_con;
 extern pthread_mutex_t mqtt_mut;
 extern pthread_cond_t mqtt_con;
+extern rbusHandle_t rbus_handle;
 
 /*----------------------------------------------------------------------------*/
 /*                             Test Functions                             */
@@ -402,7 +403,25 @@ void test_rbus_log_handler()
     rbus_log_handler(3, "file4", 4, 0, "message4");
     rbus_log_handler(4, "file5", 5, 0, "message5");
 }
- 
+
+// Test case for get_global_rbus_handle
+void test_get_global_rbus_handle()
+{
+    CU_ASSERT_EQUAL(rbus_handle, get_global_rbus_handle());
+}
+
+// Test case for mqtt_retry
+void test_mqtt_retry()
+{
+	mqtt_timer_t mqtt_timer;
+	pthread_t thread;
+	pthread_create(&thread, NULL, (void*)signalConditionVariable, NULL);
+	init_mqtt_timer(&mqtt_timer, MAX_MQTT_RETRY);
+	int result = mqtt_retry(&mqtt_timer);
+	// Wait for the signaling thread to finish
+        pthread_join(thread, NULL);
+	CU_ASSERT_EQUAL(result, 0);
+} 
 void add_suites( CU_pSuite *suite )
 {
     *suite = CU_add_suite( "tests", NULL, NULL );
@@ -436,7 +455,9 @@ void add_suites( CU_pSuite *suite )
     CU_add_test( *suite, "test get_global_mqtt_cond", test_get_global_mqtt_cond); 
     CU_add_test( *suite, "test get_global_mqtt_mut", test_get_global_mqtt_mut);
     CU_add_test( *suite, "test registerRbusLogger", test_registerRbusLogger);
-    CU_add_test( *suite, "test rbus_log_handler", test_rbus_log_handler); 
+    CU_add_test( *suite, "test rbus_log_handler", test_rbus_log_handler);
+    CU_add_test( *suite, "test get_global_rbus_handle", test_get_global_rbus_handle);
+    CU_add_test( *suite, "test mqtt_retry", test_mqtt_retry); 
 }
 
 int main( int argc, char *argv[] )
