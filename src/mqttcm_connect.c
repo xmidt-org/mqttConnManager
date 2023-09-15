@@ -30,7 +30,7 @@ static char* Port =NULL;
 static char* broker = NULL;
 static char* connMode = NULL;
 static int mqinit = 0;
-static rbusHandle_t rbus_handle;
+rbusHandle_t rbus_handle;
 static char* mqttdata = NULL;
 static int broker_connect = 0;
 static int reconnectFlag = 0;
@@ -42,7 +42,6 @@ pthread_cond_t mqtt_retry_con=PTHREAD_COND_INITIALIZER;
 pthread_mutex_t mqtt_mut=PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t mqtt_con=PTHREAD_COND_INITIALIZER;
 
-static int mqtt_retry(mqtt_timer_t *timer);
 void init_mqtt_timer (mqtt_timer_t *timer, int max_count);
 static comp_topic_name_t *g_head = NULL;
 
@@ -737,7 +736,7 @@ void mqtt_rand_expiration (int random_num1, int random_num2, mqtt_timer_t *timer
  *  1   shutdown
  *  0    delay taken
 */
-static int mqtt_retry(mqtt_timer_t *timer)
+int mqtt_retry(mqtt_timer_t *timer)
 {
 	struct timespec ts;
 	int rtn;

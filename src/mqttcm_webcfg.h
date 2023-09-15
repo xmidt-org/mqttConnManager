@@ -38,3 +38,6 @@ rbusError_t sendRbusEventWebcfgOnPublish(int mid);
 int sendRbusErrorToMqtt(rbusError_t rc, char *topic_name);
 char * createcJsonSchema(rbusError_t rc, char *topic_name);
 char * createMqttPubHeader(char * payload, ssize_t * payload_len);
+rbusError_t webcfgMqttSubscribeHandler(rbusHandle_t handle, rbusEventSubAction_t action, const char* eventName, rbusFilter_t filter, int32_t interval, bool* autoPublish);
+rbusError_t webcfgMqttOnMessageHandler(rbusHandle_t handle, rbusEventSubAction_t action, const char* eventName, rbusFilter_t filter, int32_t interval, bool* autoPublish);
+rbusError_t webcfgMqttOnPublishHandler(rbusHandle_t handle, rbusEventSubAction_t action, const char* eventName, rbusFilter_t filter, int32_t interval, bool* autoPublish);

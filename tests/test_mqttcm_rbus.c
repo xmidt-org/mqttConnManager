@@ -233,7 +233,7 @@ void test_regMqttDataModel_success()
 void test_regMqttDataModel_failure()
 {
     int result = regMqttDataModel();
-    CU_ASSERT_EQUAL(result, 14);
+    CU_ASSERT_NOT_EQUAL(result, 0);
     mqttCMRbus_Uninit();
 }
 

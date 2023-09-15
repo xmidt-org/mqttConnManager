@@ -232,6 +232,42 @@ void test_createcJsonSchema_success()
 	CU_ASSERT_PTR_NOT_NULL(ret);
 }
 
+//Test function for webcfgMqttSubscribeHandler
+void test_webcfgMqttSubscribeHandler()
+{
+	rbusError_t ret = RBUS_ERROR_BUS_ERROR;
+
+	ret = webcfgMqttSubscribeHandler(handle, RBUS_EVENT_ACTION_SUBSCRIBE , WEBCFG_MQTT_SUBSCRIBE_CALLBACK, NULL, 0, false);
+	CU_ASSERT_EQUAL(ret, 0);
+
+	ret = webcfgMqttSubscribeHandler(handle, RBUS_EVENT_ACTION_SUBSCRIBE , WEBCFG_MQTT_ONMESSAGE_CALLBACK, NULL, 0, false);
+	CU_ASSERT_EQUAL(ret, 0);
+}
+
+//Test function for webcfgMqttOnMessageHandler
+void test_webcfgMqttOnMessageHandler()
+{
+	rbusError_t ret = RBUS_ERROR_BUS_ERROR;
+
+	ret = webcfgMqttOnMessageHandler(handle, RBUS_EVENT_ACTION_SUBSCRIBE , WEBCFG_MQTT_ONMESSAGE_CALLBACK, NULL, 0, false);
+	CU_ASSERT_EQUAL(ret, 0);
+
+	ret = webcfgMqttOnMessageHandler(handle, RBUS_EVENT_ACTION_SUBSCRIBE , WEBCFG_MQTT_SUBSCRIBE_CALLBACK, NULL, 0, false);
+	CU_ASSERT_EQUAL(ret, 0);
+}
+
+//Test function for webcfgMqttOnPublishHandler
+void test_webcfgMqttOnPublishHandler()
+{
+	rbusError_t ret = RBUS_ERROR_BUS_ERROR;
+
+	ret = webcfgMqttOnPublishHandler(handle, RBUS_EVENT_ACTION_SUBSCRIBE , WEBCFG_MQTT_ONPUBLISH_CALLBACK, NULL, 0, false);
+	CU_ASSERT_EQUAL(ret, 0);
+
+	ret = webcfgMqttOnPublishHandler(handle, RBUS_EVENT_ACTION_SUBSCRIBE , WEBCFG_MQTT_ONMESSAGE_CALLBACK, NULL, 0, false);
+	CU_ASSERT_EQUAL(ret, 0);
+}
+
 void add_suites( CU_pSuite *suite )
 {
     *suite = CU_add_suite( "tests", NULL, NULL );
@@ -247,6 +283,9 @@ void add_suites( CU_pSuite *suite )
     CU_add_test( *suite, "test createMqttPubHeader_success", test_createMqttPubHeader_success);
     CU_add_test( *suite, "test createMqttPubHeader_failure", test_createMqttPubHeader_failure);
     CU_add_test( *suite, "test createcJsonSchema_success", test_createcJsonSchema_success);
+    CU_add_test( *suite, "test webcfgMqttSubscribeHandler", test_webcfgMqttSubscribeHandler);
+    CU_add_test( *suite, "test webcfgMqttOnMessageHandler", test_webcfgMqttOnMessageHandler);
+    CU_add_test( *suite, "test webcfgMqttOnPublishHandler", test_webcfgMqttOnPublishHandler);
 }
 
 int main( int argc, char *argv[] )
