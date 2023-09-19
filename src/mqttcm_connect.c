@@ -791,10 +791,10 @@ int publish_notify_mqtt(char *pub_topic, void *payload, ssize_t len)
 
 	rc = mosquitto_publish_v5(mosq, NULL, pub_topic, len, payload, 2, false, props);
 
-	MqttCMDebug("Publish rc %d\n", rc);
+	MqttCMInfo("Publish rc %d\n", rc);
         if(rc != MOSQ_ERR_SUCCESS)
 	{
-                MqttCMError("Error publishing: %s and publish rc: %d\n", mosquitto_strerror(rc), rc);
+                MqttCMError("Error publishing: %s\n", mosquitto_strerror(rc));
         }
 	else
 	{
@@ -1279,7 +1279,7 @@ rbusError_t MqttPublishMethodHandler(rbusHandle_t handle, char const* methodName
 
 	//char *pub_get_topic = NULL;
 
-	MqttCMDebug("methodHandler called: %s\n", methodName);
+	MqttCMInfo("methodHandler called: %s\n", methodName);
 	//rbusObject_fwrite(inParams, 1, stdout);
 	if(strncmp(methodName, MQTT_PUBLISH_PARAM, maxParamLen) == 0)
 	{
@@ -1332,7 +1332,7 @@ rbusError_t MqttPublishMethodHandler(rbusHandle_t handle, char const* methodName
 				qos_str = (char *) rbusValue_GetString(qos,NULL);
 				if(qos_str)
 				{
-					MqttCMDebug("qos from TR181 is %s\n",qos_str);
+					MqttCMInfo("qos from TR181 is %s\n",qos_str);
 				}
 			}
 		}
@@ -1344,15 +1344,15 @@ rbusError_t MqttPublishMethodHandler(rbusHandle_t handle, char const* methodName
 
 		if (payload_bytes != NULL)
 		{
-			MqttCMDebug("Length of the payload bytes before publishing is %d\n", msg_len);
+			MqttCMInfo("Length of the payload bytes before publishing is %d\n", msg_len);
 			publish_notify_mqtt(topic_str, payload_bytes, msg_len);
 		}
 		else if (payload_str != NULL)
                 {
-			MqttCMDebug("Length of the payload string before publishing is %zu\n", strlen(payload_str));
+			MqttCMInfo("Length of the payload string before publishing is %zu\n", strlen(payload_str));
 			publish_notify_mqtt(topic_str, payload_str, strlen(payload_str));
 		}
-		MqttCMDebug("publish_notify_mqtt done\n");
+		MqttCMInfo("publish_notify_mqtt done\n");
 	}
 	else 
 	{
