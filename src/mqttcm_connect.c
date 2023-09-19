@@ -1842,11 +1842,12 @@ int AddSubscribeTopicToFile(char *compName, char *topic)
 {
 	FILE *fp;
 	char str[256] = {'\0'};
+	int ret = 0;
 	fp = fopen(MQTT_SUBSCRIBER_FILE , "a+");
 	if (fp == NULL)
 	{
 		MqttCMError("Could not open file %s\n", MQTT_SUBSCRIBER_FILE );
-		return 0; 
+		return ret;
 	}
 
 	if((compName !=NULL) && (topic != NULL))
@@ -1854,12 +1855,12 @@ int AddSubscribeTopicToFile(char *compName, char *topic)
 		snprintf(str, sizeof(str), "%s:%s\n", compName, topic);
 		fprintf(fp, "%s", str);
 		MqttCMInfo("AddSubscribeTopicToFile: Added compName %s with topic %s\n", compName, topic);
-		return 1;
+		ret = 1;
 	}
 	else
 	{
 		MqttCMError("AddSubscribeTopicToFile failed as Compname or Topic is NULL\n");
-		return 0;
+		ret = 0;
 	}
 
 	if(fp != NULL)
@@ -1867,6 +1868,7 @@ int AddSubscribeTopicToFile(char *compName, char *topic)
 		fclose(fp);
 	}
 
+	return ret;
 }
 //writeflag to avoid duplicate entry in the subscriber local file
 int AddToSubscriptionList(char *compName, char *topic, int writeFlag)
