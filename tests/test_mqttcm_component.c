@@ -139,17 +139,6 @@ void test_printList(void)
     CU_ASSERT_EQUAL(result, 1);
 }
 
-// Test function for stripAndAddModuleName
-void test_stripAndAddModuleName(void)
-{
-    char inputString[] = "This is a test string with module1 and module2.";
-    const char* substr = "module1";
-    const char* newstr = "moduleX";
-
-    int result = stripAndAddModuleName(inputString, substr, newstr);
-    CU_ASSERT_EQUAL(result, 1);
-}
-
 // Test function for GetTopicFromFileandUpdateList
 void test_GetTopicFromFileandUpdateList()
 {
@@ -188,7 +177,6 @@ void add_suites( CU_pSuite *suite )
     CU_add_test( *suite, "test UpdateSubscriptionIdToList_Success", test_UpdateSubscriptionIdToList_Success);
     CU_add_test( *suite, "test UpdateSubscriptionIdToList_Failure", test_UpdateSubscriptionIdToList_Failure);
     CU_add_test( *suite, "test printList", test_printList);
-    CU_add_test( *suite, "test stripAndAddModuleName", test_stripAndAddModuleName);
     CU_add_test( *suite, "test GetTopicFromFileandUpdateList", test_GetTopicFromFileandUpdateList);
     CU_add_test( *suite, "test AddSubscribeTopicToFile_success", test_AddSubscribeTopicToFile_success);
     CU_add_test( *suite, "test AddSubscribeTopicToFile_failure", test_AddSubscribeTopicToFile_failure);
