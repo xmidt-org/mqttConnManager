@@ -1694,7 +1694,7 @@ int printList()
 int mqtt_subscribe(char *comp, char *topic)
 {
 	int rc;
-	char temp_topic[30];
+	char temp_topic[30]={'\0'};
 	if(topic != NULL && comp !=NULL)
 	{
 		int ret = isSubscribeNeeded(comp);
@@ -1718,7 +1718,17 @@ int mqtt_subscribe(char *comp, char *topic)
 		if(strcmp (comp, SUBSCRIBE_WEBCONFIG) == 0)
 		{
 			int subscribeId;
-			sprintf(temp_topic,"%s%s/#",MQTT_SUBSCRIBE_TOPIC,Get_Mqtt_ClientId());
+			char *tempclient_id = NULL;
+			tempclient_id = Get_Mqtt_ClientId();
+			if( tempclient_id != NULL && strlen(tempclient_id) !=0 )
+			{
+				snprintf(temp_topic, sizeof(temp_topic), "%s%s/#", MQTT_SUBSCRIBE_TOPIC, tempclient_id);
+			}
+			else
+			{
+				MqttCMError("Client id is NULL so not proceeding to subscribe\n");
+				return 1;
+			}
 			MqttCMInfo("Subscribing to wildcard topic - %s\n", temp_topic);			
 			rc = mosquitto_subscribe(mosq, &subscribeId, temp_topic, 1);
 
@@ -1763,7 +1773,7 @@ int mqtt_subscribe(char *comp, char *topic)
 	{
 		MqttCMError("Failed to subscribe as topic is NULL\n");
 	}
-	return 1;
+	return 1;	
 }
 
 int GetTopicFromFileandUpdateList()
