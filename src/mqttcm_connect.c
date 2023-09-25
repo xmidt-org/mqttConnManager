@@ -1718,7 +1718,10 @@ int mqtt_subscribe(char *comp, char *topic)
 		if(strcmp (comp, SUBSCRIBE_WEBCONFIG) == 0)
 		{
 			int subscribeId;
-			sprintf(temp_topic,"%s%s/#",MQTT_SUBSCRIBE_TOPIC,Get_Mqtt_ClientId());
+			if( Get_Mqtt_ClientId() != NULL)
+			{
+				snprintf(temp_topic, sizeof(temp_topic), "%s%s/#", MQTT_SUBSCRIBE_TOPIC, Get_Mqtt_ClientId());
+			}
 			MqttCMInfo("Subscribing to wildcard topic - %s\n", temp_topic);			
 			rc = mosquitto_subscribe(mosq, &subscribeId, temp_topic, 1);
 
