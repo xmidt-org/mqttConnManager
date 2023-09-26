@@ -43,7 +43,7 @@
 #include <uuid/uuid.h>
 
 #define MQTT_COMPONENT_NAME  "mqttConnManager"
-
+#define MQTT_SUBSCRIBE_TOPIC "x/to/"
 #define MQTT_CONFIG_FILE     "/tmp/.mqttconfig"
 #define MOSQ_TLS_VERSION     "tlsv1.2"
 #define OPENSYNC_CERT        "/etc/mqttcm/mqtt_cert_init.sh"
@@ -141,7 +141,6 @@ void get_interface(char **interface);
 pthread_cond_t *get_global_mqtt1_con(void);
 pthread_mutex_t *get_global_mqtt1_mut(void);
 rbusHandle_t get_global_rbus_handle(void);
-int stripAndAddModuleName(char *str, const char *substr, const char *newstr);
 void mosquittoTriggerDisconnect();
 int get_global_shutdown();
 int valueChangeCheck(char *valueStored, char *valueChanged);

@@ -1691,30 +1691,10 @@ int printList()
 	return 1;
 }
 
-int stripAndAddModuleName(char *str, const char *substr, const char *newstr)
-{
-	size_t substrlen = strlen(substr);
-	char *match;
-
-	while ((match = strstr(str, substr)) != NULL)
-	{
-		size_t striplen = strlen(match + substrlen);
-
-		// Remove the matched substring
-		memmove(match, match + substrlen, striplen + 1);
-	}
-
-	// Find the position to add the addition
-	char *end_of_str = str + strlen(str);
-
-	// Append the addition to the end of the resulting string
-	strncat(end_of_str, newstr, strlen(newstr));
-	return 1;
-}
-
 int mqtt_subscribe(char *comp, char *topic)
 {
 	int rc;
+	char temp_topic[30]={'\0'};
 	if(topic != NULL && comp !=NULL)
 	{
 		int ret = isSubscribeNeeded(comp);
@@ -1738,12 +1718,19 @@ int mqtt_subscribe(char *comp, char *topic)
 		if(strcmp (comp, SUBSCRIBE_WEBCONFIG) == 0)
 		{
 			int subscribeId;
-
-			//Subscribe to wildcard topic "#"
-			stripAndAddModuleName(topic, SUBSCRIBE_WEBCONFIG, "#");
-			MqttCMInfo("Subscribing to wildcard topic - %s\n", topic);
-
-			rc = mosquitto_subscribe(mosq, &subscribeId, topic, 1);
+			char *tempclient_id = NULL;
+			tempclient_id = Get_Mqtt_ClientId();
+			if( tempclient_id != NULL && strlen(tempclient_id) !=0 )
+			{
+				snprintf(temp_topic, sizeof(temp_topic), "%s%s/#", MQTT_SUBSCRIBE_TOPIC, tempclient_id);
+			}
+			else
+			{
+				MqttCMError("Client id is NULL so not proceeding to subscribe\n");
+				return 1;
+			}
+			MqttCMInfo("Subscribing to wildcard topic - %s\n", temp_topic);			
+			rc = mosquitto_subscribe(mosq, &subscribeId, temp_topic, 1);
 
 			if(rc != MOSQ_ERR_SUCCESS)
 			{
@@ -1786,7 +1773,7 @@ int mqtt_subscribe(char *comp, char *topic)
 	{
 		MqttCMError("Failed to subscribe as topic is NULL\n");
 	}
-	return 1;
+	return 1;	
 }
 
 int GetTopicFromFileandUpdateList()
