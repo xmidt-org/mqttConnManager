@@ -30,7 +30,7 @@ static char* Port =NULL;
 static char* broker = NULL;
 static char* connMode = NULL;
 static int mqinit = 0;
-static rbusHandle_t rbus_handle;
+rbusHandle_t rbus_handle;
 static char* mqttdata = NULL;
 static int broker_connect = 0;
 static int reconnectFlag = 0;
@@ -42,7 +42,6 @@ pthread_cond_t mqtt_retry_con=PTHREAD_COND_INITIALIZER;
 pthread_mutex_t mqtt_mut=PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t mqtt_con=PTHREAD_COND_INITIALIZER;
 
-static int mqtt_retry(mqtt_timer_t *timer);
 void init_mqtt_timer (mqtt_timer_t *timer, int max_count);
 static comp_topic_name_t *g_head = NULL;
 
@@ -90,7 +89,7 @@ int isReconnectNeeded()
 	return reconnectFlag;
 }
 
-void valueChangeCheck(char *valueStored, char *valueChanged)
+int valueChangeCheck(char *valueStored, char *valueChanged)
 {
 	if(valueStored != NULL && valueChanged != NULL)
 	{
@@ -98,8 +97,10 @@ void valueChangeCheck(char *valueStored, char *valueChanged)
 		if(strcmp(valueStored, valueChanged)!= 0)
 		{
 			valueChangeFlag = 1;
+			return 1;
 		}
 	}
+	return 0;
 }
 
 bool isRbusEnabled() 
@@ -145,9 +146,10 @@ int mqttCMRbusInit(char *pComponentName)
 	return 1;
 }
 
-void mqttCMRbus_Uninit()
+int mqttCMRbus_Uninit()
 {
     rbus_close(rbus_handle);
+    return 1;
 }
 
 //Initialize mqtt library and connect to mqtt broker
@@ -652,10 +654,11 @@ void rbus_log_handler(
     MqttCMInfo("%5s %s:%d -- %s\n", slevel, file, line, message);
 }
 
-void registerRbusLogger()
+int registerRbusLogger()
 {
 	rbus_registerLogHandler(rbus_log_handler);
 	MqttCMInfo("Registered rbus log handler\n");
+	return 1;
 }
 
 void init_mqtt_timer (mqtt_timer_t *timer, int max_count)
@@ -733,7 +736,7 @@ void mqtt_rand_expiration (int random_num1, int random_num2, mqtt_timer_t *timer
  *  1   shutdown
  *  0    delay taken
 */
-static int mqtt_retry(mqtt_timer_t *timer)
+int mqtt_retry(mqtt_timer_t *timer)
 {
 	struct timespec ts;
 	int rtn;
@@ -766,7 +769,7 @@ static int mqtt_retry(mqtt_timer_t *timer)
 }
 
 /* This function is used to publish the messages received from components to Broker.*/
-void publish_notify_mqtt(char *pub_topic, void *payload, ssize_t len)
+int publish_notify_mqtt(char *pub_topic, void *payload, ssize_t len)
 {
         int rc;
 
@@ -798,8 +801,9 @@ void publish_notify_mqtt(char *pub_topic, void *payload, ssize_t len)
 		MqttCMInfo("Publish payload success %d\n", rc);
 	}
 	mosquitto_loop(mosq, 0, 1);
-    mosquitto_property_free_all(&props);
+	mosquitto_property_free_all(&props);
 	MqttCMDebug("Publish mosquitto_loop done\n");
+	return rc;
 }
 
 void get_from_file(char *key, char **val, char *filepath)
@@ -1658,7 +1662,7 @@ char* GetTopicFromSubcribeId(int subscribeId)
 	return NULL;
 }
 
-void UpdateSubscriptionIdToList(char *comp, int subscribeId)
+int UpdateSubscriptionIdToList(char *comp, int subscribeId)
 {
 	comp_topic_name_t* temp = g_head;
 	while (temp != NULL)
@@ -1668,13 +1672,14 @@ void UpdateSubscriptionIdToList(char *comp, int subscribeId)
 			temp->subscribeId = subscribeId;
 			temp->subscribeOnFlag = 1;
 			MqttCMInfo("The component %s is subscribed to topic %s with subscribeId %d\n", temp->compName, temp->topic, subscribeId);
-			return;
+			return 1;
 		}
 		temp = temp->next;
 	}
+        return 0;
 }
 
-void printList()
+int printList()
 {
 	MqttCMInfo("Inside print function\n");
 	comp_topic_name_t* current = g_head;
@@ -1683,31 +1688,13 @@ void printList()
 		MqttCMInfo("compname is %s and topic is %s\n", current->compName, current->topic);
 		current = current->next;
 	}
-}
-
-void stripAndAddModuleName(char *str, const char *substr, const char *newstr)
-{
-	size_t substrlen = strlen(substr);
-	char *match;
-
-	while ((match = strstr(str, substr)) != NULL)
-	{
-		size_t striplen = strlen(match + substrlen);
-
-		// Remove the matched substring
-		memmove(match, match + substrlen, striplen + 1);
-	}
-
-	// Find the position to add the addition
-	char *end_of_str = str + strlen(str);
-
-	// Append the addition to the end of the resulting string
-	strncat(end_of_str, newstr, strlen(newstr));
+	return 1;
 }
 
 int mqtt_subscribe(char *comp, char *topic)
 {
 	int rc;
+	char temp_topic[30]={'\0'};
 	if(topic != NULL && comp !=NULL)
 	{
 		int ret = isSubscribeNeeded(comp);
@@ -1731,20 +1718,19 @@ int mqtt_subscribe(char *comp, char *topic)
 		if(strcmp (comp, SUBSCRIBE_WEBCONFIG) == 0)
 		{
 			int subscribeId;
-
-			//Subscribe to wildcard topic "#"
-			char* temptopic = strndup(topic, strlen(topic));
-
-			if(temptopic == NULL)
+			char *tempclient_id = NULL;
+			tempclient_id = Get_Mqtt_ClientId();
+			if( tempclient_id != NULL && strlen(tempclient_id) !=0 )
 			{
-				MqttCMError("Failed to subscribe as topic is NULL\n");
+				snprintf(temp_topic, sizeof(temp_topic), "%s%s/#", MQTT_SUBSCRIBE_TOPIC, tempclient_id);
+			}
+			else
+			{
+				MqttCMError("Client id is NULL so not proceeding to subscribe\n");
 				return 1;
 			}
-
-			stripAndAddModuleName(temptopic, SUBSCRIBE_WEBCONFIG, "#");
-			MqttCMInfo("Subscribing to wildcard topic - %s\n", temptopic);
-
-			rc = mosquitto_subscribe(mosq, &subscribeId, topic, 1);
+			MqttCMInfo("Subscribing to wildcard topic - %s\n", temp_topic);			
+			rc = mosquitto_subscribe(mosq, &subscribeId, temp_topic, 1);
 
 			if(rc != MOSQ_ERR_SUCCESS)
 			{
@@ -1752,7 +1738,6 @@ int mqtt_subscribe(char *comp, char *topic)
 				return 1;
 			}
 
-			MQTTCM_FREE(temptopic);
 			comp_topic_name_t* temp = g_head;
 			while (temp != NULL)
 			{
@@ -1840,15 +1825,16 @@ int GetTopicFromFileandUpdateList()
 }
 
 //Used to create a file for subscribed components with component name and topic, the file format is compName:topic
-void AddSubscribeTopicToFile(char *compName, char *topic)
+int AddSubscribeTopicToFile(char *compName, char *topic)
 {
 	FILE *fp;
 	char str[256] = {'\0'};
+	int ret = 0;
 	fp = fopen(MQTT_SUBSCRIBER_FILE , "a+");
 	if (fp == NULL)
 	{
 		MqttCMError("Could not open file %s\n", MQTT_SUBSCRIBER_FILE );
-		return;
+		return ret;
 	}
 
 	if((compName !=NULL) && (topic != NULL))
@@ -1856,10 +1842,12 @@ void AddSubscribeTopicToFile(char *compName, char *topic)
 		snprintf(str, sizeof(str), "%s:%s\n", compName, topic);
 		fprintf(fp, "%s", str);
 		MqttCMInfo("AddSubscribeTopicToFile: Added compName %s with topic %s\n", compName, topic);
+		ret = 1;
 	}
 	else
 	{
 		MqttCMError("AddSubscribeTopicToFile failed as Compname or Topic is NULL\n");
+		ret = 0;
 	}
 
 	if(fp != NULL)
@@ -1867,6 +1855,7 @@ void AddSubscribeTopicToFile(char *compName, char *topic)
 		fclose(fp);
 	}
 
+	return ret;
 }
 //writeflag to avoid duplicate entry in the subscriber local file
 int AddToSubscriptionList(char *compName, char *topic, int writeFlag)

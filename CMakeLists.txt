@@ -79,10 +79,11 @@ add_dependencies(libcimplog cimplog)
 ExternalProject_Add(cJSON
     PREFIX ${PREFIX_DIR}/cJSON
     GIT_REPOSITORY https://github.com/DaveGamble/cJSON.git
-    GIT_TAG "39853e5148dad8dc5d32ea2b00943cf4a0c6f120"
+    #GIT_TAG "39853e5148dad8dc5d32ea2b00943cf4a0c6f120"
+    GIT_TAG v1.6.0
     CMAKE_ARGS += -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}
 )
-add_library(libcJSON STATIC IMPORTED)
+add_library(libcJSON STATIC SHARED IMPORTED)
 add_dependencies(libcJSON cJSON)
 
 # rbus external dependency
@@ -109,6 +110,20 @@ link_directories ( ${LIBRARY_DIR} ${COMMON_LIBRARY_DIR} ${LIBRARY_DIR64} )
 
 add_subdirectory(src)
 add_subdirectory(lib)
+
+if (BUILD_TESTING)
+# cmocka external dependency
+#-------------------------------------------------------------------------------
+ExternalProject_Add(cmocka
+    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/_prefix/cmocka
+    GIT_REPOSITORY https://github.com/elventear/cmocka.git
+    GIT_TAG "b71a3060699bc1a5b00e958be353772f42545ac2"
+    CMAKE_ARGS += -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}
+)
+add_library(libcmocka STATIC SHARED IMPORTED)
+add_dependencies(libcmocka cmocka)
+
+endif (BUILD_TESTING)
 
 if (BUILD_TESTING)
 	add_subdirectory(tests)
