@@ -43,6 +43,8 @@ pthread_mutex_t mqtt_mut=PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t mqtt_con=PTHREAD_COND_INITIALIZER;
 
 void init_mqtt_timer (mqtt_timer_t *timer, int max_count);
+void custom_log_callback(struct mosquitto *mosq, void *userdata, int level, const char *message);
+int password_callback(char *buf, int size, int rwflag, void *userdata);
 static comp_topic_name_t *g_head = NULL;
 
 rbusHandle_t get_global_rbus_handle(void)
@@ -218,7 +220,7 @@ bool mqttCMConnectBroker()
 					tls->keyfile = KEYFILE;
 					tls->tls_version = MOSQ_TLS_VERSION;
 
-					rc = mosquitto_tls_set(mosq, tls->cafile, tls->capath, tls->certfile, tls->keyfile, tls->pw_callback);
+					rc = mosquitto_tls_set(mosq, tls->cafile, tls->capath, tls->certfile, tls->keyfile, password_callback);
 					MqttCMInfo("mosquitto_tls_set rc %d\n", rc);
 					if(rc)
 					{
@@ -271,6 +273,8 @@ bool mqttCMConnectBroker()
 					mosquitto_subscribe_v5_callback_set(mosq, on_subscribe);
 					mosquitto_message_v5_callback_set(mosq, on_message);
 					mosquitto_publish_v5_callback_set(mosq, on_publish);
+					//for logging purpose
+					mosquitto_log_callback_set(mosq, custom_log_callback);
 
 					MqttCMDebug("port %d\n", port);
 
@@ -412,6 +416,48 @@ int validateForMqttInit()
 		}
 	}
 	return 0;
+}
+
+void custom_log_callback(struct mosquitto *mosq, void *userdata, int level, const char *message)
+{
+    // Control logging based on levels
+    if (level == MOSQ_LOG_DEBUG) {
+        // Log debug messages
+        MqttCMInfo("Debug log message: %s\n", message);
+    } else if (level == MOSQ_LOG_INFO) {
+        // Log informational messages
+        MqttCMInfo("Info log message: %s\n", message);
+    } else if (level == MOSQ_LOG_NOTICE) {
+        // Log notice messages
+        MqttCMInfo("Notice log message: %s\n", message);
+    } else if (level == MOSQ_LOG_WARNING) {
+        // Log warning messages
+        printf("Warning log message: %s\n", message);
+    } else if (level == MOSQ_LOG_ERR) {
+        // Log error messages
+        MqttCMError("Error log message: %s\n", message);
+    }
+}
+
+int password_callback(char *buf, int size, int rwflag, void *userdata)
+{
+	MqttCMInfo("Inside Password_callback\n");
+	char *passphrase = NULL;
+
+	get_from_file("PASSKEY=", &passphrase, MQTT_CONFIG_FILE);
+
+	if( !passphrase )
+	{
+		MqttCMError("Passkey not Found\n");
+	}
+	else
+	{
+		strncpy(buf, passphrase, size);
+		buf[size - 1] = '\0';
+	}
+
+	MqttCMInfo("Buffer is %s\n", buf);
+	return strlen(buf);
 }
 
 // callback called when the client receives a CONNACK message from the broker
