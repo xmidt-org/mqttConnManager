@@ -182,7 +182,23 @@ bool mqttCMConnectBroker()
 			username = clientId;
 			MqttCMInfo("clientId is %s username is %s\n", clientId, username);
 
-			execute_mqtt_script(OPENSYNC_CERT);
+			//execute_mqtt_script(OPENSYNC_CERT);
+			const char *testfile = "/tmp/testmqttfile";
+			if (!freopen(testfile, "r", stdin))
+			{
+				perror("freopen failed\n");
+				return EXIT_FAILURE;
+			}
+
+			int value;
+			while (scanf("%d", &value) == 1)
+			{
+				// Process the data as needed
+				MqttCMInfo("Read value: %d\n", value);
+			}
+
+			// Close the redirected stdin
+			fclose(stdin);
 
 			if(clientId !=NULL)
 			{
