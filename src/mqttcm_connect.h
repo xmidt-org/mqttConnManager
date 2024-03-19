@@ -46,7 +46,6 @@
 #define MQTT_SUBSCRIBE_TOPIC "x/to/"
 #define MQTT_CONFIG_FILE     "/tmp/.mqttconfig"
 #define MOSQ_TLS_VERSION     "tlsv1.2"
-#define OPENSYNC_CERT        "/etc/mqttcm/mqtt_cert_init.sh"
 #define KEEPALIVE            60
 #define MQTT_PORT            443
 #define MAX_MQTT_LEN         128
@@ -128,7 +127,6 @@ int validateForMqttInit();
 pthread_cond_t *get_global_mqtt_cond(void);
 pthread_mutex_t *get_global_mqtt_mut(void);
 int regMqttDataModel();
-int execute_mqtt_script(char *name);
 int getHostIPFromInterface(char *interface, char **ip);
 void fetchMqttParamsFromDB();
 int mqtt_subscribe(char *comp, char *topic);
@@ -146,3 +144,5 @@ int get_global_shutdown();
 int valueChangeCheck(char *valueStored, char *valueChanged);
 void rbus_log_handler(rbusLogLevel level, const char* file, int line, int threadId, char* message);
 int mqtt_retry(mqtt_timer_t *timer);
+void custom_log_callback(struct mosquitto *mosq, void *userdata, int level, const char *message);
+int password_callback(char *buf, int size, int rwflag, void *userdata);

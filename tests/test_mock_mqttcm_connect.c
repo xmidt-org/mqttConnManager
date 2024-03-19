@@ -136,6 +136,12 @@ void mosquitto_publish_v5_callback_set(struct mosquitto *mosq, void (*on_publish
 	function_called();
 }
 
+void mosquitto_log_callback_set(struct mosquitto *mosq, void (*custom_log_callback)(struct mosquitto *mosq, void *userdata, int level, const char *message))
+{
+	UNUSED(mosq);
+	function_called();
+}
+
 int mosquitto_connect_bind_v5(struct mosquitto *mosq, const char *host, int port, int keepalive, const char *bind_address, const mosquitto_property *properties)
 {
 	UNUSED(mosq);
@@ -231,7 +237,7 @@ char* getDeviceInterface()
 void test_mqttCMConnectBroker()
 { 	
  	bool result = false;
-
+  	remove(MQTT_CONFIG_FILE);
  	// Test 1 - mosquitto_new fails returns NULL
  	mqttCMRbusInit("mqttConnManager");
     	regMqttDataModel();
@@ -359,6 +365,7 @@ void test_mqttCMConnectBroker()
   	expect_function_call (mosquitto_subscribe_v5_callback_set);
   	expect_function_call (mosquitto_message_v5_callback_set);
   	expect_function_call (mosquitto_publish_v5_callback_set);
+  	expect_function_call (mosquitto_log_callback_set);
 
   	will_return (mosquitto_connect_bind_v5, 0);
   	expect_function_call (mosquitto_connect_bind_v5);
@@ -397,7 +404,8 @@ void test_mqttCMConnectBroker()
   	expect_function_call (mosquitto_subscribe_v5_callback_set);
   	expect_function_call (mosquitto_message_v5_callback_set);
   	expect_function_call (mosquitto_publish_v5_callback_set);
-
+  	expect_function_call (mosquitto_log_callback_set);
+  	
   	will_return (mosquitto_connect_bind_v5, 0);
   	expect_function_call (mosquitto_connect_bind_v5);
 

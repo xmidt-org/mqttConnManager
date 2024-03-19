@@ -154,6 +154,7 @@ void test_sendRbusEventWebcfgOnSubscribe_success()
 	rbusError_t ret = sendRbusEventWebcfgOnSubscribe();
 	CU_ASSERT_EQUAL(ret, 0);
 	rbushandleclose(WEBCFG_MQTT_SUBSCRIBE_CALLBACK);
+	sleep(1);//rbus is taking time to unscribe the event, so adding delay
 }
 
 //Test case for sendRbusEventWebcfgOnMessage Success
@@ -163,6 +164,7 @@ void test_sendRbusEventWebcfgOnMessage_success()
 	rbusError_t ret = sendRbusEventWebcfgOnMessage("mqttdata", 8, "testtopic");
 	CU_ASSERT_EQUAL(ret, 0);
 	rbushandleclose(WEBCFG_MQTT_ONMESSAGE_CALLBACK);
+	sleep(1);//rbus is taking time to unscribe the event, so adding delay
 }
 
 //Test case for sendRbusEventWebcfgOnPublish Success
@@ -172,6 +174,7 @@ void test_sendRbusEventWebcfgOnPublish_success()
 	rbusError_t ret = sendRbusEventWebcfgOnPublish(1);
 	CU_ASSERT_EQUAL(ret, 0);
 	rbushandleclose(WEBCFG_MQTT_ONPUBLISH_CALLBACK);
+	sleep(1);//rbus is taking time to unscribe the event, so adding delay
 }
 
 //Test case for sendRbusEventWebcfgOnSubscribe failure
