@@ -128,7 +128,6 @@ int validateForMqttInit();
 pthread_cond_t *get_global_mqtt_cond(void);
 pthread_mutex_t *get_global_mqtt_mut(void);
 int regMqttDataModel();
-int execute_mqtt_script(char *name);
 int getHostIPFromInterface(char *interface, char **ip);
 void fetchMqttParamsFromDB();
 int mqtt_subscribe(char *comp, char *topic);
