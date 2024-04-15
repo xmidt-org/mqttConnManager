@@ -937,7 +937,7 @@ void fetchMqttParamsFromDB()
 	{
 		Port = strdup(tmpPort);
 	}
-	MqttCMInfo("Mqtt params fetched from DB, locationId %s broker %s clientId %s Port %s\n", locationId, (broker!=NULL)?broker:"is NULL", clientId,Port);
+	MqttCMInfo("Mqtt params fetched from DB, locationId %s broker %s clientId %s Port %s\n", locationId, (broker!=NULL)?broker:"NULL", clientId,Port);
 }
 
 rbusError_t MqttLocationIdSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSetHandlerOptions_t* opts)
