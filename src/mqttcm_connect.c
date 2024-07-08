@@ -180,8 +180,6 @@ bool mqttCMConnectBroker()
 			username = clientId;
 			MqttCMInfo("clientId is %s username is %s\n", clientId, username);
 
-			execute_mqtt_script(OPENSYNC_CERT);
-
 			if(clientId !=NULL)
 			{
 				mosq = mosquitto_new(clientId, clean_session, NULL);
@@ -203,7 +201,7 @@ bool mqttCMConnectBroker()
 			{
 				memset(tls, 0, sizeof(struct libmosquitto_tls));
 
-				char * CAFILE, *CERTFILE , *KEYFILE = NULL;
+				char * CAFILE= NULL, *CERTFILE= NULL, *KEYFILE = NULL;
 
 				get_from_file("CA_FILE_PATH=", &CAFILE, MQTT_CONFIG_FILE);
 				get_from_file("CERT_FILE_PATH=", &CERTFILE, MQTT_CONFIG_FILE);
@@ -218,11 +216,11 @@ bool mqttCMConnectBroker()
 					tls->keyfile = KEYFILE;
 					tls->tls_version = MOSQ_TLS_VERSION;
 
-					rc = mosquitto_tls_set(mosq, tls->cafile, tls->capath, tls->certfile, tls->keyfile, tls->pw_callback);
+					rc = mosquitto_tls_set(mosq, tls->cafile, tls->capath, tls->certfile, tls->keyfile, password_callback);
 					MqttCMInfo("mosquitto_tls_set rc %d\n", rc);
 					if(rc)
 					{
-						MqttCMError("Failed in mosquitto_tls_set %d %s\n", rc, mosquitto_strerror(rc));
+						MqttCMError("Failed in mosquitto_tls_set : %d %s, Cert %s\n", rc, mosquitto_strerror(rc), KEYFILE);
 					}
 					else
 					{
@@ -271,6 +269,8 @@ bool mqttCMConnectBroker()
 					mosquitto_subscribe_v5_callback_set(mosq, on_subscribe);
 					mosquitto_message_v5_callback_set(mosq, on_message);
 					mosquitto_publish_v5_callback_set(mosq, on_publish);
+					//for logging purpose
+					mosquitto_log_callback_set(mosq, custom_log_callback);
 
 					MqttCMDebug("port %d\n", port);
 
@@ -310,7 +310,7 @@ bool mqttCMConnectBroker()
 						if(rc != MOSQ_ERR_SUCCESS)
 						{
 
-							MqttCMError("mqtt connect Error: %s\n", mosquitto_strerror(rc));
+							MqttCMError("mqtt connect Error : %s, Cert %s\n", mosquitto_strerror(rc), KEYFILE);
 							if(mqtt_retry(&mqtt_timer) != MQTT_DELAY_TAKEN)
 							{
 								mosquitto_destroy(mosq);
@@ -412,6 +412,63 @@ int validateForMqttInit()
 		}
 	}
 	return 0;
+}
+
+void custom_log_callback(struct mosquitto *mosq, void *userdata, int level, const char *message)
+{
+    // Control logging based on levels
+    if (level == MOSQ_LOG_DEBUG) {
+        MqttCMDebug("Debug log message: %s\n", message);
+    } else if (level == MOSQ_LOG_INFO) {
+        MqttCMDebug("Info log message: %s\n", message);
+    } else if (level == MOSQ_LOG_NOTICE) {
+        MqttCMDebug("Notice log message: %s\n", message);
+    } else if (level == MOSQ_LOG_WARNING) {
+        MqttCMDebug("Warning log message: %s\n", message);
+    } else if (level == MOSQ_LOG_ERR) {
+        MqttCMError("Error log message: %s\n", message);
+    }
+}
+
+int password_callback(char *buf, int size, int rwflag, void *userdata)
+{
+	MqttCMInfo("Inside Password_callback\n");
+	char *passphrase = NULL;
+	int len =0;
+
+	get_from_file("private_key_passwd=", &passphrase, "/dev/stdin");
+
+	if(passphrase == NULL) 
+	{
+	        MqttCMError("Passkey fetched NULL\n");
+	        return 0;
+	}
+
+	if (buf == NULL) 
+	{
+	        MqttCMError("Buffer is null in password_callback \n");
+	        return 0;
+	}
+
+	len = strlen(passphrase);
+	if (len > size) 
+	{
+	        MqttCMError("Passkey is too long in password_callback\n");
+	        return 0;
+	}
+
+	if(passphrase == NULL)
+	{
+		MqttCMError("Passkey not Found\n");
+	}
+	else
+	{
+		strncpy(buf, passphrase, size);
+		buf[size - 1] = '\0';
+		len = strlen(buf);
+	}
+
+	return len;
 }
 
 // callback called when the client receives a CONNACK message from the broker
@@ -836,38 +893,8 @@ void get_from_file(char *key, char **val, char *filepath)
         }
         else
         {
-                MqttCMDebug("val fetched is %s\n", *val);
+                MqttCMDebug("%s val fetched from %s\n",key, filepath);
         }
-}
-
-int execute_mqtt_script(char *name)
-{
-    FILE* out = NULL, *file = NULL;
-    char command[100] = {'\0'};
-
-    if(strlen(name)>0)
-    {
-        file = fopen(name, "r");
-        if(file)
-        {
-            snprintf(command,sizeof(command),"%s mqttcert-fetch", name);
-            out = popen(command, "r");
-            if(out)
-            {
-		MqttCMInfo("The Tls cert script executed successfully\n");
-                pclose(out);
-
-            }
-            fclose(file);
-	    return 1;
-        }
-        else
-        {
-            MqttCMError("File %s open error\n", name);
-	    return 0;
-        }
-    }
-    return 0;
 }
 
 int getHostIPFromInterface(char *interface, char **ip)

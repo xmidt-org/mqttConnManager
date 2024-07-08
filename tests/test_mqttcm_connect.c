@@ -287,29 +287,6 @@ void test_get_interface_failure()
     free(interface);
 }
 
-//Test case for execute_mqtt_script
-void test_executeMqttScript_success()
-{
-    char scriptName[] = "./script.sh";
-    FILE* file = createFile(scriptName);
-    fprintf(file, "#!/bin/sh\n");
-    fprintf(file, "echo");  // Only 'echo' is needed in the script
-    fclose(file);
-    // Checks whether the script is executed successfully
-    int result = execute_mqtt_script(scriptName);
-    CU_ASSERT_EQUAL(result, 1);
-    remove(scriptName);
-}
-
-void test_executeMqttScript_failure_emptystring()
-{
-    // Unable to execute the script
-    char scriptName[] = "";  
-    // Empty string to simulate failure
-    int result = execute_mqtt_script(scriptName);
-    CU_ASSERT_EQUAL(result, 0);	
-}
-
 //Test case for init_mqtt_timer
 void test_init_mqtt_timer_success() 
 {
@@ -421,7 +398,65 @@ void test_mqtt_retry()
 	// Wait for the signaling thread to finish
         pthread_join(thread, NULL);
 	CU_ASSERT_EQUAL(result, 0);
-} 
+}
+
+void redirect_stdin(const char *input) {
+    FILE *fp = fopen("temp_input.txt", "w");
+    fputs(input, fp);
+    fclose(fp);
+    freopen("temp_input.txt", "r", stdin);
+}
+//Test case for password_callback
+void test_password_callback_success()
+{
+    int len=0;
+    char buf[20]={0};
+    redirect_stdin("private_key_passwd=mykey\n");
+    len = password_callback(buf, sizeof(buf), 0, NULL);
+    CU_ASSERT(len == 5);
+    CU_ASSERT_STRING_EQUAL(buf, "mykey");
+
+}
+//Test case for password_callback when buf is long
+void test_password_callback_failure1()
+{
+    int len=0;
+    char buf[2]={0};
+    redirect_stdin("private_key_passwd=mykey\n");
+    len = password_callback(buf, sizeof(buf), 0, NULL);
+    CU_ASSERT(len == 0);
+
+}
+//Test case for password_callback when buf is null
+void test_password_callback_failure2()
+{
+    int len=0;
+    char *buf=NULL;
+    redirect_stdin("private_key_passwd=mykey\n");
+    len = password_callback(buf, sizeof(buf), 0, NULL);
+    CU_ASSERT(len == 0);
+}
+
+//Test case for password_callback, when passkey val is not present
+void test_password_callback_failure3()
+{
+    int len=0;
+    char buf[2]={0};
+    redirect_stdin("private_key");
+    len = password_callback(buf, sizeof(buf), 0, NULL);
+    CU_ASSERT(len == 0);
+}
+
+//Test case for custom_log_callback
+void test_custom_log_callback()
+{
+    custom_log_callback(NULL,NULL,MOSQ_LOG_DEBUG,"test1");
+    custom_log_callback(NULL,NULL,MOSQ_LOG_INFO,"test2");
+    custom_log_callback(NULL,NULL,MOSQ_LOG_NOTICE,"test3");
+    custom_log_callback(NULL,NULL,MOSQ_LOG_WARNING,"test4");
+    custom_log_callback(NULL,NULL,MOSQ_LOG_ERR,"test5");
+}
+
 void add_suites( CU_pSuite *suite )
 {
     *suite = CU_add_suite( "tests", NULL, NULL );
@@ -442,8 +477,6 @@ void add_suites( CU_pSuite *suite )
     CU_add_test( *suite, "test getHostIPFromInterface_failure", test_getHostIPFromInterface_failure);
     CU_add_test( *suite, "test get_interface_success", test_get_interface_success);
     CU_add_test( *suite, "test get_interface_failure", test_get_interface_failure);
-    CU_add_test( *suite, "test get_executeMqttScript_success", test_executeMqttScript_success);
-    CU_add_test( *suite, "test get_executeMqttScript_failure_emptystring", test_executeMqttScript_failure_emptystring);
     CU_add_test( *suite, "test init_mqtt_timer_success", test_init_mqtt_timer_success);
     CU_add_test( *suite, "test init_mqtt_timer_failure", test_init_mqtt_timer_failure);
     CU_add_test( *suite, "test isReconnectNeeded", test_isReconnectNeeded);
@@ -457,7 +490,12 @@ void add_suites( CU_pSuite *suite )
     CU_add_test( *suite, "test registerRbusLogger", test_registerRbusLogger);
     CU_add_test( *suite, "test rbus_log_handler", test_rbus_log_handler);
     CU_add_test( *suite, "test get_global_rbus_handle", test_get_global_rbus_handle);
-    CU_add_test( *suite, "test mqtt_retry", test_mqtt_retry); 
+    CU_add_test( *suite, "test mqtt_retry", test_mqtt_retry);
+    CU_add_test( *suite, "test password_callback", test_password_callback_success); 
+    CU_add_test( *suite, "test password_callback", test_password_callback_failure1);
+    CU_add_test( *suite, "test password_callback", test_password_callback_failure2);
+    CU_add_test( *suite, "test password_callback", test_password_callback_failure3);    
+    CU_add_test( *suite, "test custom_log_callback", test_custom_log_callback);                
 }
 
 int main( int argc, char *argv[] )
