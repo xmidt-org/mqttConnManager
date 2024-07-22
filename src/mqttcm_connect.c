@@ -36,6 +36,9 @@ static int broker_connect = 0;
 static int reconnectFlag = 0;
 static int valueChangeFlag= 0;
 static int webcfg_subscribed = 0;
+static pthread_t disconnect_tid = 0;
+pthread_mutex_t disconnect_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t disconnect_cond = PTHREAD_COND_INITIALIZER;
 
 pthread_mutex_t mqtt_retry_mut=PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t mqtt_retry_con=PTHREAD_COND_INITIALIZER;
@@ -130,6 +133,20 @@ void mosquittoTriggerDisconnect()
 	valueChangeFlag = 0;
 }
 
+void *disconnect_thread(void *status) {
+	pthread_detach(pthread_self());
+	while (1)
+	{
+		pthread_mutex_lock(&disconnect_mutex);
+		pthread_cond_wait(&disconnect_cond, &disconnect_mutex);
+		MqttCMInfo("Received signal to disconnect, proceeding to disconnect with broker\n");
+		mosquittoTriggerDisconnect();
+		pthread_mutex_unlock(&disconnect_mutex);
+	}
+	
+    return NULL;
+}
+
 //Rbus registration with mqttCM
 int mqttCMRbusInit(char *pComponentName)
 {
@@ -144,6 +161,16 @@ int mqttCMRbusInit(char *pComponentName)
 	}
 	MqttCMInfo("mqttCMRbusInit is success. ret is %d\n", ret);
 	return 1;
+}
+
+void initDisconnectTask()
+{
+	int err = 0;
+	err = pthread_create(&disconnect_tid, NULL, disconnect_thread,NULL);
+	if (err != 0)
+	{
+		MqttCMError("Error creating Mqtt disconnect Task thread :[%s]\n", strerror(err));
+	}
 }
 
 int mqttCMRbus_Uninit()
@@ -432,22 +459,32 @@ void custom_log_callback(struct mosquitto *mosq, void *userdata, int level, cons
 
 int password_callback(char *buf, int size, int rwflag, void *userdata)
 {
-	MqttCMInfo("Inside Password_callback\n");
 	char *passphrase = NULL;
 	int len =0;
+	static char g_passcode[128] = {0};
 
+	MqttCMInfo("Inside Password_callback\n");
 	get_from_file("private_key_passwd=", &passphrase, "/dev/stdin");
-
-	if(passphrase == NULL) 
-	{
-	        MqttCMError("Passkey fetched NULL\n");
-	        return 0;
-	}
 
 	if (buf == NULL) 
 	{
 	        MqttCMError("Buffer is null in password_callback \n");
 	        return 0;
+	}
+	
+	if(passphrase == NULL) 
+	{
+			len = strlen(g_passcode);
+			if(len == 0)
+			{
+				MqttCMError("Passkey fetched and global passcode are NULL\n");				
+			}
+			else
+			{
+				strcpy(buf,g_passcode);
+				MqttCMInfo("Passkey fetched NULL, Using global passcode\n");
+			}
+	        return len;
 	}
 
 	len = strlen(passphrase);
@@ -456,16 +493,13 @@ int password_callback(char *buf, int size, int rwflag, void *userdata)
 	        MqttCMError("Passkey is too long in password_callback\n");
 	        return 0;
 	}
-
-	if(passphrase == NULL)
-	{
-		MqttCMError("Passkey not Found\n");
-	}
 	else
 	{
 		strncpy(buf, passphrase, size);
 		buf[size - 1] = '\0';
+		strcpy(g_passcode,buf);
 		len = strlen(buf);
+		MQTTCM_FREE(passphrase);
 	}
 
 	return len;
@@ -1018,7 +1052,7 @@ rbusError_t MqttLocationIdSetHandler(rbusHandle_t handle, rbusProperty_t prop, r
 				validateForMqttInit();
 				if(valueChangeFlag)
 				{
-					mosquittoTriggerDisconnect();
+					pthread_cond_signal(&disconnect_cond);
 				}
 			}
 		} else {
@@ -1080,7 +1114,7 @@ rbusError_t MqttBrokerSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusS
 				validateForMqttInit();
 				if(valueChangeFlag)
 				{
-					mosquittoTriggerDisconnect();
+					pthread_cond_signal(&disconnect_cond);
 				}
 			}
 		} else {
@@ -1142,7 +1176,7 @@ rbusError_t MqttPortSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSet
 				validateForMqttInit();
 				if(valueChangeFlag)
 				{
-					mosquittoTriggerDisconnect();
+					pthread_cond_signal(&disconnect_cond);
 				}
 			}
 		} else {

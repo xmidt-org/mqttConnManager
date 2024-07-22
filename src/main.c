@@ -69,6 +69,7 @@ int main()
 			MqttCMInfo("Registering mqtt CM parameters\n");
 			regMqttDataModel();
 			MqttCMInfo("Proceed to mqtt connection with default configuration\n");
+			initDisconnectTask();
 			do
 			{
 				mqttCMConnectBroker();
