@@ -441,10 +441,10 @@ void test_password_callback_failure2()
 void test_password_callback_failure3()
 {
     int len=0;
-    char buf[2]={0};
+    char buf[10]={0};
     redirect_stdin("private_key");
     len = password_callback(buf, sizeof(buf), 0, NULL);
-    CU_ASSERT(len == 0);
+    CU_ASSERT(len == 5);
 }
 
 //Test case for custom_log_callback

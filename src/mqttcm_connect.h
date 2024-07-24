@@ -146,3 +146,4 @@ void rbus_log_handler(rbusLogLevel level, const char* file, int line, int thread
 int mqtt_retry(mqtt_timer_t *timer);
 void custom_log_callback(struct mosquitto *mosq, void *userdata, int level, const char *message);
 int password_callback(char *buf, int size, int rwflag, void *userdata);
+void initDisconnectTask();
